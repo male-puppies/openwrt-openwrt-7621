@@ -88,6 +88,9 @@ ramips_board_detect() {
 	*"CF-WR800N")
 		name="cf-wr800n"
 		;;
+	*"Openwrt Puppies")
+		name="puppies"
+		;;
 	*"CY-SWR1100")
 		name="cy-swr1100"
 		;;

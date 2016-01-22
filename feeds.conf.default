@@ -4,7 +4,7 @@ src-git routing https://github.com/male-puppies/openwrt-routing-packages-7621.gi
 src-git telephony https://github.com/male-puppies/openwrt-telephony-7621.git
 src-git management https://github.com/male-puppies/openwrt-management-packages-7621.git
 src-git targets https://github.com/male-puppies/openwrt-targets-7621.git
-#src-git oldpackages http://git.openwrt.org/packages.git
+src-git oldpackages http://git.openwrt.org/packages.git
 #src-svn xwrt http://x-wrt.googlecode.com/svn/trunk/package
 #src-svn phone svn://svn.openwrt.org/openwrt/feeds/phone
 #src-svn efl svn://svn.openwrt.org/openwrt/feeds/efl

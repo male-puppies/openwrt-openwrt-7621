@@ -89,6 +89,28 @@ ucidef_set_interfaces_lan_wan() {
 	json_select ..
 }
 
+ucidef_set_interface_lan0() {
+	json_select_object network
+	_ucidef_set_interface lan0 "$@"
+	json_select ..
+}
+
+ucidef_set_interface_wan0() {
+	json_select_object network
+	_ucidef_set_interface wan0 "$@"
+	json_select ..
+}
+
+ucidef_set_interfaces_lan0_wan0() {
+	local lan_if="$1"
+	local wan_if="$2"
+
+	json_select_object network
+	_ucidef_set_interface lan0 "$lan_if"
+	_ucidef_set_interface wan0 "$wan_if"
+	json_select ..
+}
+
 _ucidef_add_switch_port() {
 	# inherited: $num $device $need_tag $role $index $prev_role
 	# inherited: $n_cpu $n_ports $n_vlan $cpu0 $cpu1 $cpu2 $cpu3 $cpu4 $cpu5

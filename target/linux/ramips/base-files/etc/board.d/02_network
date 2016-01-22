@@ -89,6 +89,11 @@ ramips_setup_interfaces()
 		ucidef_add_switch "switch0" \
 			"0:lan" "1:lan" "2:lan" "3:lan" "4:wan" "6@eth0"
 		;;
+
+	puppies)
+		ucidef_add_switch "switch0" \
+			"0:lan" "1:lan" "2:lan" "3:lan" "4:wan" "6@eth0"
+		;;
 	a5-v11)
 		ucidef_add_switch "switch0" \
 			"0:lan" "6t@eth0"
@@ -339,6 +344,15 @@ ramips_setup_macs()
 		wan_mac=$(macaddr_add "$lan_mac" 1)
 		;;
 	esac
+	
+	if [ x$board = "xpuppies" ]; then
+		[ -n "$lan_mac" ] && ucidef_set_interface_macaddr lan0 $lan_mac
+		[ -n "$wan_mac" ] && {
+			wan_mac=$(macaddr_add "$lan_mac" 3)
+			ucidef_set_interface_macaddr wan0 $wan_mac
+		}
+		return 0
+	fi
 
 	[ -n "$lan_mac" ] && ucidef_set_interface_macaddr lan $lan_mac
 	[ -n "$wan_mac" ] && ucidef_set_interface_macaddr wan $wan_mac
