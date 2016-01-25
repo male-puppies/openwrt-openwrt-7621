@@ -1,6 +1,6 @@
 /dts-v1/;
 
-/include/ "mt7621.dtsi"
+#include "mt7621.dtsi"
 
 / {
 	compatible = "mediatek,mt7621-eval-board", "mediatek,mt7621-soc";
@@ -109,7 +109,7 @@
 
 	pinctrl {
 		state_default: pinctrl0 {
-		gpio {
+			gpio {
 				ralink,group = "wdt", "rgmii2";
 				ralink,function = "gpio";
 			};
