@@ -91,16 +91,31 @@ generate_network() {
 			local ipaddr
 			case "$1" in
 				lan0) ipaddr="172.16.0.1" ;;
+				lan1) ipaddr="172.17.0.1" ;;
+				lan2) ipaddr="172.18.0.1" ;;
+				lan3) ipaddr="172.19.0.1" ;;
+				lan4) ipaddr="172.20.0.1" ;;
+				lan5) ipaddr="172.21.0.1" ;;
+				lan6) ipaddr="172.22.0.1" ;;
+				lan7) ipaddr="172.23.0.1" ;;
 				lan) ipaddr="192.168.1.1" ;;
 				*) ipaddr="192.168.$((addr_offset++)).1" ;;
 			esac
 
+			if echo $ipaddr | grep ^172. 2>&1 >/dev/null; then
+			uci -q batch <<-EOF
+				set network.$1.proto='static'
+				set network.$1.ipaddr='$ipaddr'
+				set network.$1.netmask='255.255.0.0'
+			EOF
+			else
 			uci -q batch <<-EOF
 				set network.$1.proto='static'
 				set network.$1.ipaddr='$ipaddr'
 				set network.$1.netmask='255.255.255.0'
 				set network.$1.ip6assign='60'
 			EOF
+			fi
 		;;
 
 		dhcp)

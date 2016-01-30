@@ -44,6 +44,8 @@ _ucidef_set_interface() {
 				case "$name" in
 					lan) proto="static" ;;
 					wan) proto="dhcp" ;;
+					lan[0-9]) proto="static";;
+					wan[0-9]) proto="dhcp" ;;
 					*) proto="none" ;;
 				esac
 			;;
