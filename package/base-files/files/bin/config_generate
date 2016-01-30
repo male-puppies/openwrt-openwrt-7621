@@ -122,6 +122,9 @@ generate_network() {
 			# fixup IPv6 slave interface if parent is a bridge
 			[ "$type" = "bridge" ] && ifname="br-$1"
 
+			if echo $1 | grep wan[0-9] 2>&1 >/dev/null; then
+				:
+			else
 			uci -q batch <<-EOF
 				set network.$1.proto='dhcp'
 				delete network.${1}6
@@ -129,6 +132,7 @@ generate_network() {
 				set network.${1}6.ifname='$ifname'
 				set network.${1}6.proto='dhcpv6'
 			EOF
+			fi
 		;;
 
 		pppoe)
