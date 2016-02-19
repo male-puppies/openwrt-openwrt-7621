@@ -1,0 +1,31 @@
+diff --git a/lib/aliases.gperf b/lib/aliases.gperf
+index bad94a7..773d067 100644
+--- a/lib/aliases.gperf
++++ b/lib/aliases.gperf
+@@ -77,5 +77,6 @@ CSKOI8R, ei_koi8_r
+ CP1250, ei_cp1250
+ WINDOWS-1250, ei_cp1250
+ MS-EE, ei_cp1250
++GBK, ei_ces_gbk
+ CHAR, ei_local_char
+ WCHAR_T, ei_local_wchar_t
+diff --git a/lib/aliases.h b/lib/aliases.h
+index df151f4..b18824d 100644
+--- a/lib/aliases.h
++++ b/lib/aliases.h
+@@ -95,6 +95,7 @@ aliases_hash (register const char *str, register unsigned int len)
+ 
+ struct stringpool_t
+   {
++    char stringpool_str426[sizeof("GBK")];
+     char stringpool_str4[sizeof("L2")];
+     char stringpool_str5[sizeof("L1")];
+     char stringpool_str11[sizeof("MS-EE")];
+@@ -211,6 +212,7 @@ static const struct stringpool_t stringpool_contents =
+     "ISO-10646-UCS-2",
+     "UNICODE-1-1-UTF-7",
+     "LATIN2",
++    "GBK",
+     "UNICODELITTLE",
+     "LATIN1",
+     "ISO_646.IRV:1991",
