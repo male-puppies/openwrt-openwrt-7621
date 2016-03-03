@@ -1,6 +1,6 @@
-From 2f0270377d16f312e6ce053d6887b67f993d6f5b Mon Sep 17 00:00:00 2001
+From 1a19bba331be7ac375c743cde26fef0078c45663 Mon Sep 17 00:00:00 2001
 From: Chen Minqiang <ptpt52@gmail.com>
-Date: Tue, 1 Mar 2016 11:36:28 +0800
+Date: Thu, 3 Mar 2016 11:06:08 +0800
 Subject: [PATCH] nos track merged
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] nos track merged
  arch/mips/configs/mt7621_defconfig          |   2 +-
  arch/mips/include/asm/mach-generic/spaces.h |   2 +-
  arch/mips/include/asm/mach-ralink/mt7621.h  |   2 +-
- arch/mips/kernel/setup.c                    |  49 ++++
+ arch/mips/kernel/setup.c                    |  48 ++++
  include/linux/nos_mempool.h                 |  62 +++++
  include/linux/nos_skb.h                     |  20 ++
  include/linux/nos_track.h                   | 158 ++++++++++++
@@ -19,7 +19,7 @@ Subject: [PATCH] nos track merged
  kernel/nos_track.c                          | 374 ++++++++++++++++++++++++++++
  net/netfilter/nf_conntrack_core.c           |  40 +++
  net/netfilter/nf_conntrack_standalone.c     |   7 +
- 15 files changed, 738 insertions(+), 6 deletions(-)
+ 15 files changed, 737 insertions(+), 6 deletions(-)
  create mode 100644 include/linux/nos_mempool.h
  create mode 100644 include/linux/nos_skb.h
  create mode 100755 include/linux/nos_track.h
@@ -78,7 +78,7 @@ index 5eca174..90d4e04 100644
  #define MT7621_CHIP_NAME0		0x3637544D
  #define MT7621_CHIP_NAME1		0x20203132
 diff --git a/arch/mips/kernel/setup.c b/arch/mips/kernel/setup.c
-index 75bde36..9a34642 100644
+index 75bde36..08bdda4 100644
 --- a/arch/mips/kernel/setup.c
 +++ b/arch/mips/kernel/setup.c
 @@ -133,6 +133,13 @@ void __init detect_memory_region(phys_addr_t start, phys_addr_t sz_min, phys_add
@@ -150,15 +150,14 @@ index 75bde36..9a34642 100644
  static void __init arch_mem_init(char **cmdline_p)
  {
  	struct memblock_region *reg;
-@@ -789,6 +836,8 @@ void __init setup_arch(char **cmdline_p)
- 	plat_smp_setup();
- 	prefill_possible_map();
- 
+@@ -681,6 +728,7 @@ static void __init arch_mem_init(char **cmdline_p)
+ 				crashk_res.end - crashk_res.start + 1,
+ 				BOOTMEM_DEFAULT);
+ #endif
 +	reserve_nosmem();
-+
- 	cpu_cache_init();
- 	device_tree_init();
- }
+ 	sparse_init();
+ 	plat_swiotlb_setup();
+ 	paging_init();
 diff --git a/include/linux/nos_mempool.h b/include/linux/nos_mempool.h
 new file mode 100644
 index 0000000..a787e0e
