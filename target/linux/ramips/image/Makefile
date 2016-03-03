@@ -1004,7 +1004,8 @@ endif
 #
 
 ifeq ($(SUBTARGET),mt7621)
-  TARGET_DEVICES += mt7621 wsr-600 wsr-1166 dir-860l-b1 firewrt puppies pbr-m1 re6500 sap-g3200u3 ubnt-erx witi wf-2881 zbt-wg2626
+#  TARGET_DEVICES += mt7621 wsr-600 wsr-1166 dir-860l-b1 firewrt pbr-m1 re6500 sap-g3200u3 ubnt-erx witi wf-2881 zbt-wg2626
+  TARGET_DEVICES += puppies
 endif
 
 define Device/mt7621
