@@ -13,6 +13,8 @@ OSTYPE=$os_type
 sed -i "s/option hostname.*$/option hostname $DIST/" ./package/base-files/files/etc/config/system
 sed -i "s/CONFIG_VERSION_DIST=\".*\"/CONFIG_VERSION_DIST=\"$DIST\"/" ./.config
 sed -i "s/CONFIG_VERSION_NUMBER=\".*\"/CONFIG_VERSION_NUMBER=\"v2.1-$DATESTR\"/" ./.config
+sed -i "s/\"actype\":\".*\"$/\"actype\":\"$DIST\"/" ./feeds/puppies/myinit/root/etc/config/firmware.json
+sed -i "s/\"ostype\":\".*\"$/\"ostype\":\"$OSTYPE\"/" ./feeds/puppies/myinit/root/etc/config/firmware.json
 touch ./package/base-files/files/etc/openwrt_release
 
 make
