@@ -5241,6 +5241,7 @@ CONFIG_WPA_MSG_MIN_PRIORITY=3
 #
 CONFIG_PACKAGE_base-config=y
 # CONFIG_PACKAGE_tbqd is not set
+CONFIG_PACKAGE_userauth=y
 
 #
 # Sound
