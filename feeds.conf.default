@@ -1,8 +1,9 @@
-src-git packages https://github.com/openwrt/packages.git
-src-git luci https://github.com/openwrt/luci.git
-src-git routing https://github.com/openwrt-routing/packages.git
-src-git telephony https://github.com/openwrt/telephony.git
-src-git management https://github.com/openwrt-management/packages.git
-src-git targets https://github.com/openwrt/targets.git
-#src-git oldpackages http://git.openwrt.org/packages.git
+src-git packages https://github.com/male-puppies/openwrt-packages-puppies.git
+src-git luci https://github.com/male-puppies/openwrt-luci-puppies.git
+src-git routing https://github.com/male-puppies/openwrt-routing-packages-puppies.git
+src-git telephony https://github.com/male-puppies/openwrt-telephony-puppies.git
+src-git management https://github.com/male-puppies/openwrt-management-packages-puppies.git
+src-git targets https://github.com/male-puppies/openwrt-targets-puppies.git
+src-git oldpackages https://github.com/male-puppies/openwrt-oldpackages-puppies.git
+src-git puppies https://github.com/male-puppies/openwrt-ac-puppies.git
 #src-link custom /usr/src/openwrt/custom-feed
