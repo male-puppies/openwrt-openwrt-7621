@@ -89,10 +89,10 @@ index 0000000..a787e0e
 +#endif /* _NOS_MEMPOOL_H */
 diff --git a/include/linux/nos_track.h b/include/linux/nos_track.h
 new file mode 100755
-index 0000000..03437ca
+index 0000000..acf6320
 --- /dev/null
 +++ b/include/linux/nos_track.h
-@@ -0,0 +1,90 @@
+@@ -0,0 +1,92 @@
 +#ifndef _NOS_TRACK_H
 +#define _NOS_TRACK_H
 +
@@ -116,20 +116,22 @@ index 0000000..03437ca
 +
 +/* kernel & user comm used */
 +typedef struct nos_user_hdr {
-+	uint32_t flags; /*bitmap, status.*/
++	uint32_t flags:16, type:8, status:8; /*bitmap, status.*/
++
 +	utimes_t time_stamp; /* notify, statistics */
 +	uint32_t rule_magic; /* user node match ipset rule magic, as conf update, this need sync. */
 +	uint32_t recv_bytes, xmit_bytes; /* statisc */
 +	uint32_t recv_pkts, xmit_pkts;
++
 +	int8_t rule_idx; /* user configure rule index. */
 +	int8_t group_id;
 +	int8_t dummy_pad[2];
 +} user_hdr_t;
 +
 +typedef struct nos_flow_hdr {
-+	uint32_t l7flags;
-+	uint16_t status;
-+	uint16_t l7proto;
++	uint32_t flags;
++	uint16_t proto;
++
 +	utimes_t time_stamp;
 +	uint32_t recv_bytes, xmit_bytes;
 +	uint32_t recv_pkts, xmit_pkts; /* statistics */
@@ -937,10 +939,10 @@ index 0000000..238af79
 +}
 +__setup("ntrack_mem", set_ntrack_mem_size);
 diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index dc6858d..d1aea27 100644
+index dc6858d..ce53d5f 100644
 --- a/kernel/sysctl.c
 +++ b/kernel/sysctl.c
-@@ -276,6 +276,12 @@ static int min_extfrag_threshold;
+@@ -276,6 +276,13 @@ static int min_extfrag_threshold;
  static int max_extfrag_threshold = 1000;
  #endif
  
@@ -949,11 +951,12 @@ index dc6858d..d1aea27 100644
 +extern uint32_t nt_cap_block_sz;
 +extern uint32_t nt_user_offset;
 +extern uint32_t nt_flow_offset;
++extern uint32_t nos_user_info_max, nos_flow_info_max;
 +
  static struct ctl_table kern_table[] = {
  	{
  		.procname	= "sched_child_runs_first",
-@@ -284,6 +290,41 @@ static struct ctl_table kern_table[] = {
+@@ -284,6 +291,55 @@ static struct ctl_table kern_table[] = {
  		.mode		= 0644,
  		.proc_handler	= proc_dointvec,
  	},
@@ -988,6 +991,20 @@ index dc6858d..d1aea27 100644
 +	{
 +		.procname	= "nt_flow_offset",
 +		.data		= &nt_flow_offset,
++		.maxlen		= sizeof(unsigned int),
++		.mode		= 0444,
++		.proc_handler	= proc_dointvec,
++	},
++	{
++		.procname	= "nt_flow_max",
++		.data		= &nos_flow_info_max,
++		.maxlen		= sizeof(unsigned int),
++		.mode		= 0444,
++		.proc_handler	= proc_dointvec,
++	},
++	{
++		.procname	= "nt_user_max",
++		.data		= &nos_user_info_max,
 +		.maxlen		= sizeof(unsigned int),
 +		.mode		= 0444,
 +		.proc_handler	= proc_dointvec,
