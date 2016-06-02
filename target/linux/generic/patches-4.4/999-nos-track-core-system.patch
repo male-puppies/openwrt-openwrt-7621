@@ -1,3 +1,29 @@
+From d849808b816bda4bd281796863bdf25c9b3861fb Mon Sep 17 00:00:00 2001
+From: Chen Minqiang <ptpt52@gmail.com>
+Date: Thu, 2 Jun 2016 18:48:42 +0800
+Subject: [PATCH] nos-track core system
+
+---
+ arch/x86/mm/pat.c                    |   3 +
+ include/linux/nos_mempool.h          |  62 ++++
+ include/linux/nos_track.h            |  12 +
+ include/linux/nos_track_priv.h       |  91 ++++++
+ include/net/netfilter/nf_conntrack.h |  17 ++
+ include/uapi/linux/Kbuild            |   1 +
+ include/uapi/linux/nos_track.h       |  89 ++++++
+ init/main.c                          |   2 +
+ kernel/Kconfig.hz                    |   7 +
+ kernel/Makefile                      |   2 +-
+ kernel/nos_track.c                   | 558 +++++++++++++++++++++++++++++++++++
+ kernel/sysctl.c                      |  56 ++++
+ net/netfilter/nf_conntrack_core.c    |  18 ++
+ 13 files changed, 917 insertions(+), 1 deletion(-)
+ create mode 100644 include/linux/nos_mempool.h
+ create mode 100644 include/linux/nos_track.h
+ create mode 100644 include/linux/nos_track_priv.h
+ create mode 100644 include/uapi/linux/nos_track.h
+ create mode 100644 kernel/nos_track.c
+
 diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
 index 188e3e0..a831e03 100644
 --- a/arch/x86/mm/pat.c
@@ -89,101 +115,17 @@ index 0000000..a787e0e
 +#endif /* _NOS_MEMPOOL_H */
 diff --git a/include/linux/nos_track.h b/include/linux/nos_track.h
 new file mode 100644
-index 0000000..ce33dfd
+index 0000000..5425992
 --- /dev/null
 +++ b/include/linux/nos_track.h
-@@ -0,0 +1,96 @@
+@@ -0,0 +1,12 @@
 +#ifndef _NOS_TRACK_H
 +#define _NOS_TRACK_H
 +
 +#ifdef __KERNEL__
 +#include <linux/types.h>
 +#endif
-+
-+/* use alloc_bootmem, do not need this :-~) */
-+// #define START_RESERVE_MEM 	(16<<20) //arm/mips
-+// #define START_RESERVE_MEM 	(0x10000000) //for x86, the low addr reserved by IO.
-+
-+#ifdef CONFIG_NTRACK_BOOTM_SIZE
-+ #define NTRACK_BOOTM_SIZE (CONFIG_NTRACK_BOOTM_SIZE * (0x1<<20))
-+#else
-+ #define NTRACK_BOOTM_SIZE (64 * (0x1<<20))
-+#endif
-+
-+#define NOS_USER_INFO_SIZE			(128)
-+#define NOS_FLOW_INFO_SIZE			(64)
-+
-+#define NOS_USER_FLAGS_TYPE_USER 	(1<<0)
-+#define NOS_USER_TRACK_TIMEOUT		(HZ * 3600 * 24) //hour ?
-+
-+typedef unsigned long utimes_t;
-+
-+/* kernel & user ... multi modules comm used */
-+typedef struct nos_user_hdr {
-+	uint32_t flags:16, type:8, status:8; /*bitmap, status.*/
-+
-+	utimes_t time_stamp; /* notify, statistics */
-+	uint32_t rule_magic; /* user node match ipset rule magic, as conf update, this need sync. */
-+	uint32_t recv_bytes, xmit_bytes; /* statisc */
-+	uint32_t recv_pkts, xmit_pkts;
-+
-+	int8_t rule_idx; /* user configure rule index. */
-+	int8_t group_id;
-+	int8_t dummy_pad[2];
-+} user_hdr_t;
-+
-+typedef struct nos_flow_hdr {
-+	uint32_t flags;
-+	uint16_t proto;
-+
-+	utimes_t time_stamp;
-+	uint32_t recv_bytes, xmit_bytes;
-+	uint32_t recv_pkts, xmit_pkts; /* statistics */
-+} flow_hdr_t;
-+/* end of comm */
-+
-+/* markup the only flow. */
-+typedef struct nos_flow_tuple {
-+	uint32_t ip_src;
-+	uint32_t ip_dst;
-+	uint16_t port_src;
-+	uint16_t port_dst;
-+	uint8_t  proto;
-+	uint8_t  dir; 	//wan->lan, lan->wan, lan->lan, wan->wan.
-+	uint8_t  inface;  //lan | wan.
-+	uint8_t  dummy_pad;
-+} flow_tuple_t;
-+
-+/* each node have 16 byte header */
-+#define NOS_USER_DATA_SIZE (NOS_USER_INFO_SIZE - 16 - sizeof(struct nos_user_hdr))
-+#define NOS_FLOW_DATA_SIZE (NOS_FLOW_INFO_SIZE - 16 - sizeof(struct nos_flow_tuple) - sizeof(struct nos_flow_hdr))
-+typedef struct nos_user_info {
-+	/* !!! keep this 16 byte header sync, DO not modify !!! */
-+	uint32_t magic;
-+	uint32_t id;
-+	uint32_t refcnt;
-+	uint32_t ip;
-+	/* end */
-+
-+	struct nos_user_hdr hdr;
-+
-+	char private[NOS_USER_DATA_SIZE];
-+} user_info_t;
-+
-+typedef struct nos_flow_info {
-+	/* !!! keep this 16 byte header sync, DO not modify !!! */
-+	uint32_t magic;
-+	uint32_t id;
-+	uint32_t user_id;
-+	uint32_t peer_id;
-+	/* end */
-+
-+	struct nos_flow_tuple tuple;
-+	struct nos_flow_hdr hdr;
-+
-+	char private[NOS_FLOW_DATA_SIZE];
-+} flow_info_t;
-+
++#include <uapi/linux/nos_track.h>
 +#ifdef __KERNEL__
 +#include <linux/nos_track_priv.h>
 +#endif
@@ -287,7 +229,7 @@ index 0000000..23bc6a7
 +
 +#endif /* _NOS_TRACK_PRIV_H__ */
 diff --git a/include/net/netfilter/nf_conntrack.h b/include/net/netfilter/nf_conntrack.h
-index fde4068..cbee06a 100644
+index fde4068..880491c 100644
 --- a/include/net/netfilter/nf_conntrack.h
 +++ b/include/net/netfilter/nf_conntrack.h
 @@ -18,6 +18,8 @@
@@ -305,7 +247,7 @@ index fde4068..cbee06a 100644
  
 +	/* nos track kernel private */
 +	struct nos_track nos_track;
-+	
++
  	/* Storage reserved for other modules, must be the last member */
  	union nf_conntrack_proto proto;
  };
@@ -313,7 +255,7 @@ index fde4068..cbee06a 100644
  	return (struct nf_conn *)skb->nfct;
  }
  
-+static inline struct nos_track* 
++static inline struct nos_track*
 +nf_ct_get_nos(struct nf_conn *ct)
 +{
 +	struct nos_track* nos = &ct->nos_track;
@@ -329,27 +271,114 @@ index fde4068..cbee06a 100644
  static inline void nf_ct_put(struct nf_conn *ct)
  {
 diff --git a/include/uapi/linux/Kbuild b/include/uapi/linux/Kbuild
-index 16028e1..59dc04a 100644
+index ebd10e6..0b8ae96 100644
 --- a/include/uapi/linux/Kbuild
 +++ b/include/uapi/linux/Kbuild
-@@ -462,3 +462,4 @@ header-y += xilinx-v4l2-controls.h
+@@ -461,3 +461,4 @@ header-y += xilinx-v4l2-controls.h
  header-y += zorro.h
  header-y += zorro_ids.h
  header-y += userfaultfd.h
 +header-y += nos_track.h
 diff --git a/include/uapi/linux/nos_track.h b/include/uapi/linux/nos_track.h
-new file mode 120000
-index 0000000..a9015a4
+new file mode 100644
+index 0000000..428eaa8
 --- /dev/null
 +++ b/include/uapi/linux/nos_track.h
-@@ -0,0 +1 @@
-+../../linux/nos_track.h
-\ No newline at end of file
+@@ -0,0 +1,89 @@
++#ifndef _UAPI_NOS_TRACK_H
++#define _UAPI_NOS_TRACK_H
++#include <linux/types.h>
++
++/* use alloc_bootmem, do not need this :-~) */
++// #define START_RESERVE_MEM 	(16<<20) //arm/mips
++// #define START_RESERVE_MEM 	(0x10000000) //for x86, the low addr reserved by IO.
++
++#ifdef CONFIG_NTRACK_BOOTM_SIZE
++ #define NTRACK_BOOTM_SIZE (CONFIG_NTRACK_BOOTM_SIZE * (0x1<<20))
++#else
++ #define NTRACK_BOOTM_SIZE (64 * (0x1<<20))
++#endif
++
++#define NOS_USER_INFO_SIZE			(128)
++#define NOS_FLOW_INFO_SIZE			(64)
++
++#define NOS_USER_FLAGS_TYPE_USER 	(1<<0)
++#define NOS_USER_TRACK_TIMEOUT		(HZ * 3600 * 24) //hour ?
++
++typedef unsigned long utimes_t;
++
++/* kernel & user ... multi modules comm used */
++typedef struct nos_user_hdr {
++	uint32_t flags:16, type:8, status:8; /*bitmap, status.*/
++
++	utimes_t time_stamp; /* notify, statistics */
++	uint32_t rule_magic; /* user node match ipset rule magic, as conf update, this need sync. */
++	uint32_t recv_bytes, xmit_bytes; /* statisc */
++	uint32_t recv_pkts, xmit_pkts;
++
++	int8_t rule_idx; /* user configure rule index. */
++	int8_t group_id;
++	int8_t dummy_pad[2];
++} user_hdr_t;
++
++typedef struct nos_flow_hdr {
++	uint32_t flags;
++	uint16_t proto;
++
++	utimes_t time_stamp;
++	uint32_t recv_bytes, xmit_bytes;
++	uint32_t recv_pkts, xmit_pkts; /* statistics */
++} flow_hdr_t;
++/* end of comm */
++
++/* markup the only flow. */
++typedef struct nos_flow_tuple {
++	uint32_t ip_src;
++	uint32_t ip_dst;
++	uint16_t port_src;
++	uint16_t port_dst;
++	uint8_t  proto;
++	uint8_t  dir; 	//wan->lan, lan->wan, lan->lan, wan->wan.
++	uint8_t  inface;  //lan | wan.
++	uint8_t  dummy_pad;
++} flow_tuple_t;
++
++/* each node have 16 byte header */
++#define NOS_USER_DATA_SIZE (NOS_USER_INFO_SIZE - 16 - sizeof(struct nos_user_hdr))
++#define NOS_FLOW_DATA_SIZE (NOS_FLOW_INFO_SIZE - 16 - sizeof(struct nos_flow_tuple) - sizeof(struct nos_flow_hdr))
++typedef struct nos_user_info {
++	/* !!! keep this 16 byte header sync, DO not modify !!! */
++	uint32_t magic;
++	uint32_t id;
++	uint32_t refcnt;
++	uint32_t ip;
++	/* end */
++
++	struct nos_user_hdr hdr;
++
++	char private[NOS_USER_DATA_SIZE];
++} user_info_t;
++
++typedef struct nos_flow_info {
++	/* !!! keep this 16 byte header sync, DO not modify !!! */
++	uint32_t magic;
++	uint32_t id;
++	uint32_t user_id;
++	uint32_t peer_id;
++	/* end */
++
++	struct nos_flow_tuple tuple;
++	struct nos_flow_hdr hdr;
++
++	char private[NOS_FLOW_DATA_SIZE];
++} flow_info_t;
++
++#endif /* _UAPI_NOS_TRACK_H */
 diff --git a/init/main.c b/init/main.c
-index eae7418..e73082f 100644
+index 9e64d70..914c0bf 100644
 --- a/init/main.c
 +++ b/init/main.c
-@@ -517,6 +517,7 @@ static void __init mm_init(void)
+@@ -494,6 +494,7 @@ static void __init mm_init(void)
  	ioremap_huge_init();
  }
  
@@ -357,14 +386,14 @@ index eae7418..e73082f 100644
  asmlinkage __visible void __init start_kernel(void)
  {
  	char *command_line;
-@@ -549,6 +550,7 @@ asmlinkage __visible void __init start_kernel(void)
+@@ -526,6 +527,7 @@ asmlinkage __visible void __init start_kernel(void)
  	page_address_init();
  	pr_notice("%s", linux_banner);
  	setup_arch(&command_line);
 +	ntrack_mem_reserve();
  	mm_init_cpumask(&init_mm);
- 	mangle_bootargs(command_line);
  	setup_command_line(command_line);
+ 	setup_nr_cpu_ids();
 diff --git a/kernel/Kconfig.hz b/kernel/Kconfig.hz
 index 2a202a8..4f1ef0e 100644
 --- a/kernel/Kconfig.hz
@@ -382,7 +411,7 @@ index 2a202a8..4f1ef0e 100644
 +	 how meny M bytes reserved for ntrack memap area.
 \ No newline at end of file
 diff --git a/kernel/Makefile b/kernel/Makefile
-index e1b7438..71a6574 100644
+index 53abf00..60c37af 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
 @@ -9,7 +9,7 @@ obj-y     = fork.o exec_domain.o panic.o \
@@ -396,7 +425,7 @@ index e1b7438..71a6574 100644
  
 diff --git a/kernel/nos_track.c b/kernel/nos_track.c
 new file mode 100644
-index 0000000..057cc4b
+index 0000000..7e822f7
 --- /dev/null
 +++ b/kernel/nos_track.c
 @@ -0,0 +1,558 @@
@@ -619,7 +648,7 @@ index 0000000..057cc4b
 +	printk("[nos_track] DEL: %pI4h\t(%6d / %6d)\n",
 +			&user->ip, nos_user_track_pool.nr_used - 1, nos_user_track_pool.nr_free + 1);
 +#endif
-+	nos_mempool_put(&nos_user_track_pool, user);	
++	nos_mempool_put(&nos_user_track_pool, user);
 +}
 +
 +static void
@@ -707,7 +736,7 @@ index 0000000..057cc4b
 +
 +	flow_id = track->flow - nos_flow_info_base;
 +	BUG_ON(flow_id < 0 || flow_id >= nos_flow_track_max);
-+	
++
 +	nos_track_check(track);
 +
 +	flow = &nos_flow_tracks[flow_id];
@@ -812,11 +841,11 @@ index 0000000..057cc4b
 +
 +	printk("nos shm: %p size: %x\n", nt_shm_base, nt_shm_size);
 +
-+	printk("nos_user_info_base: %p (phys: %x)\n", 
++	printk("nos_user_info_base: %p (phys: %x)\n",
 +		nos_user_info_base, virt_to_phys(nos_user_info_base));
-+	printk("nos_flow_info_base: %p (phys: %x)\n", 
++	printk("nos_flow_info_base: %p (phys: %x)\n",
 +		nos_flow_info_base, virt_to_phys(nos_flow_info_base));
-+	printk("nos_track_stats: %p (phys: %x)\n", 
++	printk("nos_track_stats: %p (phys: %x)\n",
 +		nos_track_stats, virt_to_phys(nos_track_stats));
 +
 +	if (virt_to_phys(nos_track_stats - 1) > nosmem_res.end) {
@@ -886,9 +915,9 @@ index 0000000..057cc4b
 +	INIT_LIST_HEAD(&nos_track_events.list);
 +	spin_lock_init(&nos_track_events.lock);
 +
-+	printk("nos_track_init() OK [user size: %d, flow size: %d]\n", 
++	printk("nos_track_init() OK [user size: %d, flow size: %d]\n",
 +		(int)sizeof(struct nos_user_info), (int)sizeof(struct nos_flow_info));
-+	printk("\t[user priv size: %d, flow priv size: %d]\n", 
++	printk("\t[user priv size: %d, flow priv size: %d]\n",
 +		NOS_USER_DATA_SIZE, NOS_FLOW_DATA_SIZE);
 +
 +	return 0;
@@ -915,16 +944,16 @@ index 0000000..057cc4b
 +		return;
 +	}
 +	nt_shm_base = virt_to_phys(nt_shm_base);
-+	
++
 +	nosmem_res.start = nt_shm_base;
 +	nosmem_res.end = nosmem_res.start + nt_shm_size - 1;
 +	ret = insert_resource(&iomem_resource, &nosmem_res);
 +	if (ret) {
-+		pr_err("Resource %ldMB of mem at %ldMB for nos_track failed. %d\n", 
++		pr_err("Resource %ldMB of mem at %ldMB for nos_track failed. %d\n",
 +			((unsigned long)nt_shm_size >> 20),
 +			((unsigned long)nt_shm_base >> 20), ret);
 +	} else {
-+		pr_info("Resource %ldMB of mem at %ldMB for nos_track.\n", 
++		pr_info("Resource %ldMB of mem at %ldMB for nos_track.\n",
 +			((unsigned long)nt_shm_size >> 20),
 +			((unsigned long)nt_shm_base >> 20));
 +	}
@@ -1033,7 +1062,7 @@ index dc6858d..ce53d5f 100644
  	{
  		.procname	= "sched_min_granularity_ns",
 diff --git a/net/netfilter/nf_conntrack_core.c b/net/netfilter/nf_conntrack_core.c
-index 3cb3cb8..13532c6 100644
+index 86a3c6f..2aff1c1 100644
 --- a/net/netfilter/nf_conntrack_core.c
 +++ b/net/netfilter/nf_conntrack_core.c
 @@ -889,6 +889,9 @@ void nf_conntrack_free(struct nf_conn *ct)
@@ -1060,11 +1089,11 @@ index 3cb3cb8..13532c6 100644
  
 +	/* roy: nos track init nodes */
 +	nos_flow_tuple.ip_src = __be32_to_cpu(tuple->src.u3.ip);
-+ 	nos_flow_tuple.ip_dst = __be32_to_cpu(tuple->dst.u3.ip);
-+ 	nos_flow_tuple.port_src = __be16_to_cpu(tuple->src.u.all);
-+ 	nos_flow_tuple.port_dst = __be16_to_cpu(tuple->dst.u.all);
-+ 	nos_flow_tuple.proto = tuple->dst.protonum;
-+ 	nos_track_alloc(&ct->nos_track, &nos_flow_tuple, skb);
++	nos_flow_tuple.ip_dst = __be32_to_cpu(tuple->dst.u3.ip);
++	nos_flow_tuple.port_src = __be16_to_cpu(tuple->src.u.all);
++	nos_flow_tuple.port_dst = __be16_to_cpu(tuple->dst.u.all);
++	nos_flow_tuple.proto = tuple->dst.protonum;
++	nos_track_alloc(&ct->nos_track, &nos_flow_tuple, skb);
 +
  	if (!l4proto->new(ct, skb, dataoff, timeouts)) {
  		nf_conntrack_free(ct);
@@ -1082,3 +1111,6 @@ index 3cb3cb8..13532c6 100644
  	for (i = 0; i < CONNTRACK_LOCKS; i++)
  		spin_lock_init(&nf_conntrack_locks[i]);
  
+-- 
+2.7.4
+
