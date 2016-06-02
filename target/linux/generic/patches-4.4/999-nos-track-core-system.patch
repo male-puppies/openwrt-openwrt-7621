@@ -20,7 +20,7 @@ index 188e3e0..a831e03 100644
  }
  #endif /* CONFIG_STRICT_DEVMEM */
 diff --git a/include/linux/nos_mempool.h b/include/linux/nos_mempool.h
-new file mode 100755
+new file mode 100644
 index 0000000..a787e0e
 --- /dev/null
 +++ b/include/linux/nos_mempool.h
@@ -88,11 +88,11 @@ index 0000000..a787e0e
 +
 +#endif /* _NOS_MEMPOOL_H */
 diff --git a/include/linux/nos_track.h b/include/linux/nos_track.h
-new file mode 100755
-index 0000000..acf6320
+new file mode 100644
+index 0000000..ce33dfd
 --- /dev/null
 +++ b/include/linux/nos_track.h
-@@ -0,0 +1,92 @@
+@@ -0,0 +1,96 @@
 +#ifndef _NOS_TRACK_H
 +#define _NOS_TRACK_H
 +
@@ -104,7 +104,11 @@ index 0000000..acf6320
 +// #define START_RESERVE_MEM 	(16<<20) //arm/mips
 +// #define START_RESERVE_MEM 	(0x10000000) //for x86, the low addr reserved by IO.
 +
-+#define RESERVE_MEM_DEF_SIZE 	(64<<20)
++#ifdef CONFIG_NTRACK_BOOTM_SIZE
++ #define NTRACK_BOOTM_SIZE (CONFIG_NTRACK_BOOTM_SIZE * (0x1<<20))
++#else
++ #define NTRACK_BOOTM_SIZE (64 * (0x1<<20))
++#endif
 +
 +#define NOS_USER_INFO_SIZE			(128)
 +#define NOS_FLOW_INFO_SIZE			(64)
@@ -114,7 +118,7 @@ index 0000000..acf6320
 +
 +typedef unsigned long utimes_t;
 +
-+/* kernel & user comm used */
++/* kernel & user ... multi modules comm used */
 +typedef struct nos_user_hdr {
 +	uint32_t flags:16, type:8, status:8; /*bitmap, status.*/
 +
@@ -186,7 +190,7 @@ index 0000000..acf6320
 +
 +#endif /* _NOS_TRACK_H */
 diff --git a/include/linux/nos_track_priv.h b/include/linux/nos_track_priv.h
-new file mode 100755
+new file mode 100644
 index 0000000..23bc6a7
 --- /dev/null
 +++ b/include/linux/nos_track_priv.h
@@ -325,7 +329,7 @@ index fde4068..cbee06a 100644
  static inline void nf_ct_put(struct nf_conn *ct)
  {
 diff --git a/include/uapi/linux/Kbuild b/include/uapi/linux/Kbuild
-index 1f38658..5881646 100644
+index 16028e1..59dc04a 100644
 --- a/include/uapi/linux/Kbuild
 +++ b/include/uapi/linux/Kbuild
 @@ -462,3 +462,4 @@ header-y += xilinx-v4l2-controls.h
@@ -361,6 +365,22 @@ index eae7418..e73082f 100644
  	mm_init_cpumask(&init_mm);
  	mangle_bootargs(command_line);
  	setup_command_line(command_line);
+diff --git a/kernel/Kconfig.hz b/kernel/Kconfig.hz
+index 2a202a8..4f1ef0e 100644
+--- a/kernel/Kconfig.hz
++++ b/kernel/Kconfig.hz
+@@ -56,3 +56,10 @@ config HZ
+ 
+ config SCHED_HRTICK
+ 	def_bool HIGH_RES_TIMERS
++
++config NTRACK_BOOTM_SIZE
++	prompt "(Mbytes) nos track system reserved bottom memory."
++	int
++	default 64
++	help
++	 how meny M bytes reserved for ntrack memap area.
+\ No newline at end of file
 diff --git a/kernel/Makefile b/kernel/Makefile
 index e1b7438..71a6574 100644
 --- a/kernel/Makefile
@@ -375,8 +395,8 @@ index e1b7438..71a6574 100644
  obj-$(CONFIG_MULTIUSER) += groups.o
  
 diff --git a/kernel/nos_track.c b/kernel/nos_track.c
-new file mode 100755
-index 0000000..238af79
+new file mode 100644
+index 0000000..057cc4b
 --- /dev/null
 +++ b/kernel/nos_track.c
 @@ -0,0 +1,558 @@
@@ -393,7 +413,7 @@ index 0000000..238af79
 +
 +/* for sysctl read */
 +void		*nt_shm_base = NULL;
-+uint32_t 	nt_shm_size = RESERVE_MEM_DEF_SIZE;
++uint32_t 	nt_shm_size = NTRACK_BOOTM_SIZE;
 +uint32_t 	nt_cap_block_sz = 0;
 +uint32_t 	nt_user_offset = 0;
 +uint32_t 	nt_flow_offset = 0;
@@ -915,14 +935,14 @@ index 0000000..238af79
 +	int ret;
 +
 +	if (*str++ != '=' || !*str) {
-+		nt_shm_size = RESERVE_MEM_DEF_SIZE;
++		nt_shm_size = NTRACK_BOOTM_SIZE;
 +		ret = 1;
 +		goto __finished;
 +	}
 +
 +	ret = kstrtouint(str, 0, &nt_shm_size);
 +	if(ret) {
-+		nt_shm_size = RESERVE_MEM_DEF_SIZE;
++		nt_shm_size = NTRACK_BOOTM_SIZE;
 +		ret = 1;
 +		goto __finished;
 +	}
@@ -930,7 +950,7 @@ index 0000000..238af79
 +	if(nt_shm_size > 0 && nt_shm_size <= 64) {
 +		nt_shm_size = (nt_shm_size<<20);
 +	} else {
-+		nt_shm_size = RESERVE_MEM_DEF_SIZE;
++		nt_shm_size = NTRACK_BOOTM_SIZE;
 +	}
 +
 +__finished:
