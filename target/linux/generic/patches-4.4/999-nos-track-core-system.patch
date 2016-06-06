@@ -1,23 +1,25 @@
-From d849808b816bda4bd281796863bdf25c9b3861fb Mon Sep 17 00:00:00 2001
-From: Chen Minqiang <ptpt52@gmail.com>
-Date: Thu, 2 Jun 2016 18:48:42 +0800
-Subject: [PATCH] nos-track core system
+From ca18ca23dd908f80836d7d100bee9b5e6b65409e Mon Sep 17 00:00:00 2001
+From: roy <fengmushu@gmail.com>
+Date: Mon, 6 Jun 2016 15:14:46 +0800
+Subject: [PATCH] reserve area in skbuff for ntrack proto analyse
 
 ---
  arch/x86/mm/pat.c                    |   3 +
  include/linux/nos_mempool.h          |  62 ++++
  include/linux/nos_track.h            |  12 +
  include/linux/nos_track_priv.h       |  91 ++++++
+ include/linux/skbuff.h               |   6 +
  include/net/netfilter/nf_conntrack.h |  17 ++
  include/uapi/linux/Kbuild            |   1 +
- include/uapi/linux/nos_track.h       |  89 ++++++
+ include/uapi/linux/nos_track.h       |  91 ++++++
  init/main.c                          |   2 +
  kernel/Kconfig.hz                    |   7 +
  kernel/Makefile                      |   2 +-
  kernel/nos_track.c                   | 558 +++++++++++++++++++++++++++++++++++
  kernel/sysctl.c                      |  56 ++++
+ net/core/skbuff.c                    |   4 +
  net/netfilter/nf_conntrack_core.c    |  18 ++
- 13 files changed, 917 insertions(+), 1 deletion(-)
+ 15 files changed, 929 insertions(+), 1 deletion(-)
  create mode 100644 include/linux/nos_mempool.h
  create mode 100644 include/linux/nos_track.h
  create mode 100644 include/linux/nos_track_priv.h
@@ -228,6 +230,30 @@ index 0000000..23bc6a7
 +void nos_track_event_unregister(struct nos_track_event *ev);
 +
 +#endif /* _NOS_TRACK_PRIV_H__ */
+diff --git a/include/linux/skbuff.h b/include/linux/skbuff.h
+index a74d315..e7fde4f 100644
+--- a/include/linux/skbuff.h
++++ b/include/linux/skbuff.h
+@@ -39,6 +39,9 @@
+ #include <linux/in6.h>
+ #include <net/flow.h>
+ 
++/* define skb/ntrack pkt priv size */
++#include <linux/nos_track.h>
++
+ /* A. Checksumming of received packets by device.
+  *
+  * CHECKSUM_NONE:
+@@ -709,6 +712,9 @@ struct sk_buff {
+ 				*data;
+ 	unsigned int		truesize;
+ 	atomic_t		users;
++
++	/* ntrack reserved for packet parser. */
++	unsigned char ntrack_priv[NTRACK_PKT_PRIV_SIZE];
+ };
+ 
+ #ifdef __KERNEL__
 diff --git a/include/net/netfilter/nf_conntrack.h b/include/net/netfilter/nf_conntrack.h
 index fde4068..880491c 100644
 --- a/include/net/netfilter/nf_conntrack.h
@@ -271,20 +297,20 @@ index fde4068..880491c 100644
  static inline void nf_ct_put(struct nf_conn *ct)
  {
 diff --git a/include/uapi/linux/Kbuild b/include/uapi/linux/Kbuild
-index ebd10e6..0b8ae96 100644
+index 16028e1..59dc04a 100644
 --- a/include/uapi/linux/Kbuild
 +++ b/include/uapi/linux/Kbuild
-@@ -461,3 +461,4 @@ header-y += xilinx-v4l2-controls.h
+@@ -462,3 +462,4 @@ header-y += xilinx-v4l2-controls.h
  header-y += zorro.h
  header-y += zorro_ids.h
  header-y += userfaultfd.h
 +header-y += nos_track.h
 diff --git a/include/uapi/linux/nos_track.h b/include/uapi/linux/nos_track.h
 new file mode 100644
-index 0000000..428eaa8
+index 0000000..40d3d97
 --- /dev/null
 +++ b/include/uapi/linux/nos_track.h
-@@ -0,0 +1,89 @@
+@@ -0,0 +1,91 @@
 +#ifndef _UAPI_NOS_TRACK_H
 +#define _UAPI_NOS_TRACK_H
 +#include <linux/types.h>
@@ -299,8 +325,10 @@ index 0000000..428eaa8
 + #define NTRACK_BOOTM_SIZE (64 * (0x1<<20))
 +#endif
 +
++#define NTRACK_PKT_PRIV_SIZE (64)
++
 +#define NOS_USER_INFO_SIZE			(128)
-+#define NOS_FLOW_INFO_SIZE			(64)
++#define NOS_FLOW_INFO_SIZE			(128)
 +
 +#define NOS_USER_FLAGS_TYPE_USER 	(1<<0)
 +#define NOS_USER_TRACK_TIMEOUT		(HZ * 3600 * 24) //hour ?
@@ -375,10 +403,10 @@ index 0000000..428eaa8
 +
 +#endif /* _UAPI_NOS_TRACK_H */
 diff --git a/init/main.c b/init/main.c
-index 9e64d70..914c0bf 100644
+index eae7418..e73082f 100644
 --- a/init/main.c
 +++ b/init/main.c
-@@ -494,6 +494,7 @@ static void __init mm_init(void)
+@@ -517,6 +517,7 @@ static void __init mm_init(void)
  	ioremap_huge_init();
  }
  
@@ -386,14 +414,14 @@ index 9e64d70..914c0bf 100644
  asmlinkage __visible void __init start_kernel(void)
  {
  	char *command_line;
-@@ -526,6 +527,7 @@ asmlinkage __visible void __init start_kernel(void)
+@@ -549,6 +550,7 @@ asmlinkage __visible void __init start_kernel(void)
  	page_address_init();
  	pr_notice("%s", linux_banner);
  	setup_arch(&command_line);
 +	ntrack_mem_reserve();
  	mm_init_cpumask(&init_mm);
+ 	mangle_bootargs(command_line);
  	setup_command_line(command_line);
- 	setup_nr_cpu_ids();
 diff --git a/kernel/Kconfig.hz b/kernel/Kconfig.hz
 index 2a202a8..4f1ef0e 100644
 --- a/kernel/Kconfig.hz
@@ -411,7 +439,7 @@ index 2a202a8..4f1ef0e 100644
 +	 how meny M bytes reserved for ntrack memap area.
 \ No newline at end of file
 diff --git a/kernel/Makefile b/kernel/Makefile
-index 53abf00..60c37af 100644
+index e1b7438..71a6574 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
 @@ -9,7 +9,7 @@ obj-y     = fork.o exec_domain.o panic.o \
@@ -1061,8 +1089,23 @@ index dc6858d..ce53d5f 100644
  #ifdef CONFIG_SCHED_DEBUG
  	{
  		.procname	= "sched_min_granularity_ns",
+diff --git a/net/core/skbuff.c b/net/core/skbuff.c
+index 194cd25..cd61544 100644
+--- a/net/core/skbuff.c
++++ b/net/core/skbuff.c
+@@ -793,6 +793,10 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
+ 	memcpy(&new->headers_start, &old->headers_start,
+ 	       offsetof(struct sk_buff, headers_end) -
+ 	       offsetof(struct sk_buff, headers_start));
++
++	/* ntrack reserved  */
++	memcpy(new->ntrack_priv, old->ntrack_priv, sizeof(old->ntrack_priv));
++
+ 	CHECK_SKB_FIELD(protocol);
+ 	CHECK_SKB_FIELD(csum);
+ 	CHECK_SKB_FIELD(hash);
 diff --git a/net/netfilter/nf_conntrack_core.c b/net/netfilter/nf_conntrack_core.c
-index 86a3c6f..2aff1c1 100644
+index 3cb3cb8..f190cad 100644
 --- a/net/netfilter/nf_conntrack_core.c
 +++ b/net/netfilter/nf_conntrack_core.c
 @@ -889,6 +889,9 @@ void nf_conntrack_free(struct nf_conn *ct)
@@ -1112,5 +1155,5 @@ index 86a3c6f..2aff1c1 100644
  		spin_lock_init(&nf_conntrack_locks[i]);
  
 -- 
-2.7.4
+2.8.2
 
