@@ -1,7 +1,7 @@
-From ca18ca23dd908f80836d7d100bee9b5e6b65409e Mon Sep 17 00:00:00 2001
-From: roy <fengmushu@gmail.com>
-Date: Mon, 6 Jun 2016 15:14:46 +0800
-Subject: [PATCH] reserve area in skbuff for ntrack proto analyse
+From 8c248f34620217fba839681884cdea733057e6d8 Mon Sep 17 00:00:00 2001
+From: Chen Minqiang <ptpt52@gmail.com>
+Date: Mon, 20 Jun 2016 11:00:10 +0800
+Subject: [PATCH] nos-track core system
 
 ---
  arch/x86/mm/pat.c                    |   3 +
@@ -11,7 +11,7 @@ Subject: [PATCH] reserve area in skbuff for ntrack proto analyse
  include/linux/skbuff.h               |   6 +
  include/net/netfilter/nf_conntrack.h |  17 ++
  include/uapi/linux/Kbuild            |   1 +
- include/uapi/linux/nos_track.h       |  91 ++++++
+ include/uapi/linux/nos_track.h       |  95 ++++++
  init/main.c                          |   2 +
  kernel/Kconfig.hz                    |   7 +
  kernel/Makefile                      |   2 +-
@@ -19,7 +19,7 @@ Subject: [PATCH] reserve area in skbuff for ntrack proto analyse
  kernel/sysctl.c                      |  56 ++++
  net/core/skbuff.c                    |   4 +
  net/netfilter/nf_conntrack_core.c    |  18 ++
- 15 files changed, 929 insertions(+), 1 deletion(-)
+ 15 files changed, 933 insertions(+), 1 deletion(-)
  create mode 100644 include/linux/nos_mempool.h
  create mode 100644 include/linux/nos_track.h
  create mode 100644 include/linux/nos_track_priv.h
@@ -231,7 +231,7 @@ index 0000000..23bc6a7
 +
 +#endif /* _NOS_TRACK_PRIV_H__ */
 diff --git a/include/linux/skbuff.h b/include/linux/skbuff.h
-index a74d315..e7fde4f 100644
+index 4fde618..af61a77 100644
 --- a/include/linux/skbuff.h
 +++ b/include/linux/skbuff.h
 @@ -39,6 +39,9 @@
@@ -244,7 +244,7 @@ index a74d315..e7fde4f 100644
  /* A. Checksumming of received packets by device.
   *
   * CHECKSUM_NONE:
-@@ -709,6 +712,9 @@ struct sk_buff {
+@@ -708,6 +711,9 @@ struct sk_buff {
  				*data;
  	unsigned int		truesize;
  	atomic_t		users;
@@ -297,20 +297,20 @@ index fde4068..880491c 100644
  static inline void nf_ct_put(struct nf_conn *ct)
  {
 diff --git a/include/uapi/linux/Kbuild b/include/uapi/linux/Kbuild
-index 16028e1..59dc04a 100644
+index ebd10e6..0b8ae96 100644
 --- a/include/uapi/linux/Kbuild
 +++ b/include/uapi/linux/Kbuild
-@@ -462,3 +462,4 @@ header-y += xilinx-v4l2-controls.h
+@@ -461,3 +461,4 @@ header-y += xilinx-v4l2-controls.h
  header-y += zorro.h
  header-y += zorro_ids.h
  header-y += userfaultfd.h
 +header-y += nos_track.h
 diff --git a/include/uapi/linux/nos_track.h b/include/uapi/linux/nos_track.h
 new file mode 100644
-index 0000000..40d3d97
+index 0000000..3ff17ad
 --- /dev/null
 +++ b/include/uapi/linux/nos_track.h
-@@ -0,0 +1,91 @@
+@@ -0,0 +1,95 @@
 +#ifndef _UAPI_NOS_TRACK_H
 +#define _UAPI_NOS_TRACK_H
 +#include <linux/types.h>
@@ -337,16 +337,22 @@ index 0000000..40d3d97
 +
 +/* kernel & user ... multi modules comm used */
 +typedef struct nos_user_hdr {
-+	uint32_t flags:16, type:8, status:8; /*bitmap, status.*/
-+
-+	utimes_t time_stamp; /* notify, statistics */
++	uint16_t flags;
++	uint8_t type;
++	uint8_t status; /*bitmap, status.*/
 +	uint32_t rule_magic; /* user node match ipset rule magic, as conf update, this need sync. */
-+	uint32_t recv_bytes, xmit_bytes; /* statisc */
-+	uint32_t recv_pkts, xmit_pkts;
++	utimes_t time_stamp; /* notify, statistics */
++	uint64_t recv_bytes, xmit_bytes; /* statisc */
++	uint64_t recv_pkts, xmit_pkts;
 +
-+	int8_t rule_idx; /* user configure rule index. */
-+	int8_t group_id;
-+	int8_t dummy_pad[2];
++	uint64_t src_ipgrp_bits;
++	uint32_t u_usr_crc;
++	uint8_t u_grp_id;
++	uint8_t src_zone_id;
++#define NOS_RULE_TYPE_AUTH 0
++#define NOS_RULE_TYPE_MAX 1
++	uint8_t rule_idx[NOS_RULE_TYPE_MAX];
++	uint8_t dummy_pad[1];
 +} user_hdr_t;
 +
 +typedef struct nos_flow_hdr {
@@ -354,8 +360,8 @@ index 0000000..40d3d97
 +	uint16_t proto;
 +
 +	utimes_t time_stamp;
-+	uint32_t recv_bytes, xmit_bytes;
-+	uint32_t recv_pkts, xmit_pkts; /* statistics */
++	uint64_t recv_bytes, xmit_bytes;
++	uint64_t recv_pkts, xmit_pkts; /* statistics */
 +} flow_hdr_t;
 +/* end of comm */
 +
@@ -366,9 +372,7 @@ index 0000000..40d3d97
 +	uint16_t port_src;
 +	uint16_t port_dst;
 +	uint8_t  proto;
-+	uint8_t  dir; 	//wan->lan, lan->wan, lan->lan, wan->wan.
-+	uint8_t  inface;  //lan | wan.
-+	uint8_t  dummy_pad;
++	uint8_t  dummy_pad[3];
 +} flow_tuple_t;
 +
 +/* each node have 16 byte header */
@@ -403,10 +407,10 @@ index 0000000..40d3d97
 +
 +#endif /* _UAPI_NOS_TRACK_H */
 diff --git a/init/main.c b/init/main.c
-index eae7418..e73082f 100644
+index 9e64d70..914c0bf 100644
 --- a/init/main.c
 +++ b/init/main.c
-@@ -517,6 +517,7 @@ static void __init mm_init(void)
+@@ -494,6 +494,7 @@ static void __init mm_init(void)
  	ioremap_huge_init();
  }
  
@@ -414,14 +418,14 @@ index eae7418..e73082f 100644
  asmlinkage __visible void __init start_kernel(void)
  {
  	char *command_line;
-@@ -549,6 +550,7 @@ asmlinkage __visible void __init start_kernel(void)
+@@ -526,6 +527,7 @@ asmlinkage __visible void __init start_kernel(void)
  	page_address_init();
  	pr_notice("%s", linux_banner);
  	setup_arch(&command_line);
 +	ntrack_mem_reserve();
  	mm_init_cpumask(&init_mm);
- 	mangle_bootargs(command_line);
  	setup_command_line(command_line);
+ 	setup_nr_cpu_ids();
 diff --git a/kernel/Kconfig.hz b/kernel/Kconfig.hz
 index 2a202a8..4f1ef0e 100644
 --- a/kernel/Kconfig.hz
@@ -439,7 +443,7 @@ index 2a202a8..4f1ef0e 100644
 +	 how meny M bytes reserved for ntrack memap area.
 \ No newline at end of file
 diff --git a/kernel/Makefile b/kernel/Makefile
-index e1b7438..71a6574 100644
+index 53abf00..60c37af 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
 @@ -9,7 +9,7 @@ obj-y     = fork.o exec_domain.o panic.o \
@@ -1090,10 +1094,10 @@ index dc6858d..ce53d5f 100644
  	{
  		.procname	= "sched_min_granularity_ns",
 diff --git a/net/core/skbuff.c b/net/core/skbuff.c
-index 194cd25..cd61544 100644
+index 9835d9a..decfad6 100644
 --- a/net/core/skbuff.c
 +++ b/net/core/skbuff.c
-@@ -793,6 +793,10 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
+@@ -776,6 +776,10 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
  	memcpy(&new->headers_start, &old->headers_start,
  	       offsetof(struct sk_buff, headers_end) -
  	       offsetof(struct sk_buff, headers_start));
@@ -1105,7 +1109,7 @@ index 194cd25..cd61544 100644
  	CHECK_SKB_FIELD(csum);
  	CHECK_SKB_FIELD(hash);
 diff --git a/net/netfilter/nf_conntrack_core.c b/net/netfilter/nf_conntrack_core.c
-index 3cb3cb8..f190cad 100644
+index 86a3c6f..2aff1c1 100644
 --- a/net/netfilter/nf_conntrack_core.c
 +++ b/net/netfilter/nf_conntrack_core.c
 @@ -889,6 +889,9 @@ void nf_conntrack_free(struct nf_conn *ct)
@@ -1155,5 +1159,5 @@ index 3cb3cb8..f190cad 100644
  		spin_lock_init(&nf_conntrack_locks[i]);
  
 -- 
-2.8.2
+2.7.4
 
