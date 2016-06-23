@@ -1,13 +1,13 @@
-From b5b5fcdb311e643f727b94d726d7ea06c735e609 Mon Sep 17 00:00:00 2001
+From 9f7f4ff1fb10c9a9643cf56324f76580f3e6b982 Mon Sep 17 00:00:00 2001
 From: Chen Minqiang <ptpt52@gmail.com>
-Date: Wed, 22 Jun 2016 18:04:45 +0800
+Date: Thu, 23 Jun 2016 15:38:48 +0800
 Subject: [PATCH] nos track core system
 
 ---
  arch/x86/mm/pat.c                    |   3 +
  include/linux/nos_mempool.h          |  62 ++++
  include/linux/nos_track.h            |  12 +
- include/linux/nos_track_priv.h       |  90 ++++++
+ include/linux/nos_track_priv.h       |  92 ++++++
  include/linux/skbuff.h               |   6 +
  include/net/netfilter/nf_conntrack.h |  17 ++
  include/uapi/linux/Kbuild            |   1 +
@@ -15,11 +15,11 @@ Subject: [PATCH] nos track core system
  init/main.c                          |   2 +
  kernel/Kconfig.hz                    |   7 +
  kernel/Makefile                      |   2 +-
- kernel/nos_track.c                   | 558 +++++++++++++++++++++++++++++++++++
+ kernel/nos_track.c                   | 570 +++++++++++++++++++++++++++++++++++
  kernel/sysctl.c                      |  56 ++++
  net/core/skbuff.c                    |   4 +
  net/netfilter/nf_conntrack_core.c    |  18 ++
- 15 files changed, 932 insertions(+), 1 deletion(-)
+ 15 files changed, 946 insertions(+), 1 deletion(-)
  create mode 100644 include/linux/nos_mempool.h
  create mode 100644 include/linux/nos_track.h
  create mode 100644 include/linux/nos_track_priv.h
@@ -135,10 +135,10 @@ index 0000000..5425992
 +#endif /* _NOS_TRACK_H */
 diff --git a/include/linux/nos_track_priv.h b/include/linux/nos_track_priv.h
 new file mode 100644
-index 0000000..e503e3f
+index 0000000..82f162f
 --- /dev/null
 +++ b/include/linux/nos_track_priv.h
-@@ -0,0 +1,90 @@
+@@ -0,0 +1,92 @@
 +#ifndef _NOS_TRACK_PRIV_H__
 +#define _NOS_TRACK_PRIV_H__
 +
@@ -215,6 +215,8 @@ index 0000000..e503e3f
 +extern uint32_t nos_track_cap_size;
 +extern uint32_t nos_user_info_max, nos_flow_info_max;
 +extern struct nos_track_stats *nos_track_stats;
++
++extern uint32_t nos_auth_no_flow_timeout;
 +
 +int nos_track_init(void);
 +int nos_track_alloc(struct nos_track *track, struct nos_flow_tuple *tuple, struct sk_buff *skb);
@@ -306,7 +308,7 @@ index ebd10e6..0b8ae96 100644
 +header-y += nos_track.h
 diff --git a/include/uapi/linux/nos_track.h b/include/uapi/linux/nos_track.h
 new file mode 100644
-index 0000000..0a72772
+index 0000000..6f17044
 --- /dev/null
 +++ b/include/uapi/linux/nos_track.h
 @@ -0,0 +1,95 @@
@@ -330,7 +332,7 @@ index 0000000..0a72772
 +#define NOS_FLOW_INFO_SIZE			(128)
 +
 +#define NOS_USER_FLAGS_TYPE_USER 	(1<<0)
-+#define NOS_USER_TRACK_TIMEOUT		(HZ * 3600 * 24) //hour ?
++#define NOS_USER_TRACK_INTERVAL		(60 * HZ)
 +
 +typedef unsigned long utimes_t;
 +
@@ -456,10 +458,10 @@ index 53abf00..60c37af 100644
  
 diff --git a/kernel/nos_track.c b/kernel/nos_track.c
 new file mode 100644
-index 0000000..f2f480e
+index 0000000..7894e3b
 --- /dev/null
 +++ b/kernel/nos_track.c
-@@ -0,0 +1,558 @@
+@@ -0,0 +1,570 @@
 +#include <linux/nos_track.h>
 +#include <linux/nos_mempool.h>
 +#include <linux/bootmem.h>
@@ -491,6 +493,9 @@ index 0000000..f2f480e
 +EXPORT_SYMBOL(nos_user_info_max);
 +EXPORT_SYMBOL(nos_flow_info_max);
 +
++uint32_t	nos_auth_no_flow_timeout = 3600;
++EXPORT_SYMBOL(nos_auth_no_flow_timeout);
++
 +/* for local use */
 +static uint32_t nos_user_track_hash_size;
 +static uint32_t nos_user_track_max;
@@ -520,9 +525,18 @@ index 0000000..f2f480e
 +
 +static void utrack_timeout_fn(unsigned long d)
 +{
++	int user_id;
++	struct nos_user_info *ui;
 +	struct nos_user_track *ut = (struct nos_user_track*)d;
 +
-+	nos_user_track_put(ut);
++	user_id = ut - nos_user_tracks;
++	ui = nos_user_info_base + user_id;
++	if (time_after(jiffies, ui->hdr.time_stamp + nos_auth_no_flow_timeout * HZ)) {
++		//timeout
++		nos_user_track_put(ut);
++	} else {
++		mod_timer(&ut->timeout, jiffies + NOS_USER_TRACK_INTERVAL);
++	}
 +}
 +
 +static struct nos_user_info *
@@ -812,7 +826,7 @@ index 0000000..f2f480e
 +	user->flags |= NOS_USER_FLAGS_TYPE_USER;
 +	++ user->refcnt;
 +	setup_timer(&user->timeout, utrack_timeout_fn, (unsigned long)user);
-+	user->timeout.expires = jiffies + NOS_USER_TRACK_TIMEOUT;
++	user->timeout.expires = jiffies + NOS_USER_TRACK_INTERVAL;
 +	add_timer(&user->timeout);
 +out:
 +	spin_unlock_bh(&user->lock);
