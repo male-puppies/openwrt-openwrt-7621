@@ -1,6 +1,6 @@
-From 9f7f4ff1fb10c9a9643cf56324f76580f3e6b982 Mon Sep 17 00:00:00 2001
+From 806b3f52c4ec65495f95572ddf17e6875cc4f93d Mon Sep 17 00:00:00 2001
 From: Chen Minqiang <ptpt52@gmail.com>
-Date: Thu, 23 Jun 2016 15:38:48 +0800
+Date: Thu, 30 Jun 2016 11:44:03 +0800
 Subject: [PATCH] nos track core system
 
 ---
@@ -11,7 +11,7 @@ Subject: [PATCH] nos track core system
  include/linux/skbuff.h               |   6 +
  include/net/netfilter/nf_conntrack.h |  17 ++
  include/uapi/linux/Kbuild            |   1 +
- include/uapi/linux/nos_track.h       |  95 ++++++
+ include/uapi/linux/nos_track.h       |  99 ++++++
  init/main.c                          |   2 +
  kernel/Kconfig.hz                    |   7 +
  kernel/Makefile                      |   2 +-
@@ -19,7 +19,7 @@ Subject: [PATCH] nos track core system
  kernel/sysctl.c                      |  56 ++++
  net/core/skbuff.c                    |   4 +
  net/netfilter/nf_conntrack_core.c    |  18 ++
- 15 files changed, 946 insertions(+), 1 deletion(-)
+ 15 files changed, 950 insertions(+), 1 deletion(-)
  create mode 100644 include/linux/nos_mempool.h
  create mode 100644 include/linux/nos_track.h
  create mode 100644 include/linux/nos_track_priv.h
@@ -308,10 +308,10 @@ index ebd10e6..0b8ae96 100644
 +header-y += nos_track.h
 diff --git a/include/uapi/linux/nos_track.h b/include/uapi/linux/nos_track.h
 new file mode 100644
-index 0000000..6f17044
+index 0000000..a05cc0a
 --- /dev/null
 +++ b/include/uapi/linux/nos_track.h
-@@ -0,0 +1,95 @@
+@@ -0,0 +1,99 @@
 +#ifndef _UAPI_NOS_TRACK_H
 +#define _UAPI_NOS_TRACK_H
 +#include <linux/types.h>
@@ -338,31 +338,35 @@ index 0000000..6f17044
 +
 +/* kernel & user ... multi modules comm used */
 +typedef struct nos_user_hdr {
-+	uint16_t flags;
-+	uint8_t type;
-+	uint8_t status; /*bitmap, status.*/
-+	uint32_t rule_magic; /* user node match ipset rule magic, as conf update, this need sync. */
++	uint32_t flags;
++	uint16_t type;
++	uint16_t status; /*bitmap, status.*/
 +	utimes_t time_stamp; /* notify, statistics */
 +	uint64_t recv_bytes, xmit_bytes; /* statisc */
 +	uint64_t recv_pkts, xmit_pkts;
 +
-+	uint64_t src_ipgrp_bits;
 +	uint32_t u_usr_crc;
++	uint16_t rule_magic; /* user node match ipset rule magic, as conf update, this need sync. */
 +	uint8_t u_grp_id;
-+	uint8_t src_zone_id;
 +#define NOS_RULE_TYPE_AUTH 0
 +#define NOS_RULE_TYPE_MAX 1
 +	uint8_t rule_idx[NOS_RULE_TYPE_MAX];
-+	uint8_t dummy_pad[1];
 +} user_hdr_t;
 +
 +typedef struct nos_flow_hdr {
 +	uint32_t flags;
 +	uint16_t proto;
-+
 +	utimes_t time_stamp;
 +	uint64_t recv_bytes, xmit_bytes;
 +	uint64_t recv_pkts, xmit_pkts; /* statistics */
++
++	/* sipgrp dipgrp szone dzone */
++	uint64_t src_ipgrp_bits;
++	uint64_t dst_ipgrp_bits;
++	uint8_t src_zone_id;
++	uint8_t dst_zone_id;
++#define INFO_STATUS_VALID_BIT (1<<0)
++	uint16_t info_status; /* flow node status valid or not */
 +} flow_hdr_t;
 +/* end of comm */
 +
