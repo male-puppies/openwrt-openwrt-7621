@@ -582,6 +582,7 @@ index 0000000..7894e3b
 +	fi->ui_dst_id = ft->ut_dst - nos_user_tracks;
 +	fi->tuple = *tuple;
 +
++	memset(&fi->hdr, 0, sizeof(fi->hdr));
 +	memset(fi->private, 0, sizeof(fi->private));
 +
 +	smp_wmb();
