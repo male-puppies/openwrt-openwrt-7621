@@ -1,6 +1,6 @@
-From 806b3f52c4ec65495f95572ddf17e6875cc4f93d Mon Sep 17 00:00:00 2001
+From 84c9d46b7b230cca77f07953b6edcfdb2477fba5 Mon Sep 17 00:00:00 2001
 From: Chen Minqiang <ptpt52@gmail.com>
-Date: Thu, 30 Jun 2016 11:44:03 +0800
+Date: Tue, 12 Jul 2016 09:57:37 +0800
 Subject: [PATCH] nos track core system
 
 ---
@@ -11,15 +11,15 @@ Subject: [PATCH] nos track core system
  include/linux/skbuff.h               |   6 +
  include/net/netfilter/nf_conntrack.h |  17 ++
  include/uapi/linux/Kbuild            |   1 +
- include/uapi/linux/nos_track.h       |  99 ++++++
+ include/uapi/linux/nos_track.h       | 100 ++++++
  init/main.c                          |   2 +
  kernel/Kconfig.hz                    |   7 +
  kernel/Makefile                      |   2 +-
- kernel/nos_track.c                   | 570 +++++++++++++++++++++++++++++++++++
+ kernel/nos_track.c                   | 571 +++++++++++++++++++++++++++++++++++
  kernel/sysctl.c                      |  56 ++++
  net/core/skbuff.c                    |   4 +
  net/netfilter/nf_conntrack_core.c    |  18 ++
- 15 files changed, 950 insertions(+), 1 deletion(-)
+ 15 files changed, 952 insertions(+), 1 deletion(-)
  create mode 100644 include/linux/nos_mempool.h
  create mode 100644 include/linux/nos_track.h
  create mode 100644 include/linux/nos_track_priv.h
@@ -308,10 +308,10 @@ index ebd10e6..0b8ae96 100644
 +header-y += nos_track.h
 diff --git a/include/uapi/linux/nos_track.h b/include/uapi/linux/nos_track.h
 new file mode 100644
-index 0000000..a05cc0a
+index 0000000..2027fd4
 --- /dev/null
 +++ b/include/uapi/linux/nos_track.h
-@@ -0,0 +1,99 @@
+@@ -0,0 +1,100 @@
 +#ifndef _UAPI_NOS_TRACK_H
 +#define _UAPI_NOS_TRACK_H
 +#include <linux/types.h>
@@ -351,6 +351,7 @@ index 0000000..a05cc0a
 +#define NOS_RULE_TYPE_AUTH 0
 +#define NOS_RULE_TYPE_MAX 1
 +	uint8_t rule_idx[NOS_RULE_TYPE_MAX];
++	uint8_t macaddr[6];
 +} user_hdr_t;
 +
 +typedef struct nos_flow_hdr {
@@ -462,10 +463,10 @@ index 53abf00..60c37af 100644
  
 diff --git a/kernel/nos_track.c b/kernel/nos_track.c
 new file mode 100644
-index 0000000..7894e3b
+index 0000000..5f99a6b
 --- /dev/null
 +++ b/kernel/nos_track.c
-@@ -0,0 +1,570 @@
+@@ -0,0 +1,571 @@
 +#include <linux/nos_track.h>
 +#include <linux/nos_mempool.h>
 +#include <linux/bootmem.h>
