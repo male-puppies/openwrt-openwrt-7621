@@ -1,6 +1,6 @@
-From 84c9d46b7b230cca77f07953b6edcfdb2477fba5 Mon Sep 17 00:00:00 2001
+From 2356678af747f860378cb8e56691d272796303ed Mon Sep 17 00:00:00 2001
 From: Chen Minqiang <ptpt52@gmail.com>
-Date: Tue, 12 Jul 2016 09:57:37 +0800
+Date: Wed, 13 Jul 2016 18:02:27 +0800
 Subject: [PATCH] nos track core system
 
 ---
@@ -11,7 +11,7 @@ Subject: [PATCH] nos track core system
  include/linux/skbuff.h               |   6 +
  include/net/netfilter/nf_conntrack.h |  17 ++
  include/uapi/linux/Kbuild            |   1 +
- include/uapi/linux/nos_track.h       | 100 ++++++
+ include/uapi/linux/nos_track.h       |  95 ++++++
  init/main.c                          |   2 +
  kernel/Kconfig.hz                    |   7 +
  kernel/Makefile                      |   2 +-
@@ -19,7 +19,7 @@ Subject: [PATCH] nos track core system
  kernel/sysctl.c                      |  56 ++++
  net/core/skbuff.c                    |   4 +
  net/netfilter/nf_conntrack_core.c    |  18 ++
- 15 files changed, 952 insertions(+), 1 deletion(-)
+ 15 files changed, 947 insertions(+), 1 deletion(-)
  create mode 100644 include/linux/nos_mempool.h
  create mode 100644 include/linux/nos_track.h
  create mode 100644 include/linux/nos_track_priv.h
@@ -308,10 +308,10 @@ index ebd10e6..0b8ae96 100644
 +header-y += nos_track.h
 diff --git a/include/uapi/linux/nos_track.h b/include/uapi/linux/nos_track.h
 new file mode 100644
-index 0000000..2027fd4
+index 0000000..9065db9
 --- /dev/null
 +++ b/include/uapi/linux/nos_track.h
-@@ -0,0 +1,100 @@
+@@ -0,0 +1,95 @@
 +#ifndef _UAPI_NOS_TRACK_H
 +#define _UAPI_NOS_TRACK_H
 +#include <linux/types.h>
@@ -345,12 +345,15 @@ index 0000000..2027fd4
 +	uint64_t recv_bytes, xmit_bytes; /* statisc */
 +	uint64_t recv_pkts, xmit_pkts;
 +
++	uint64_t ipgrp_bits;
 +	uint32_t u_usr_crc;
-+	uint16_t rule_magic; /* user node match ipset rule magic, as conf update, this need sync. */
 +	uint8_t u_grp_id;
-+#define NOS_RULE_TYPE_AUTH 0
-+#define NOS_RULE_TYPE_MAX 1
-+	uint8_t rule_idx[NOS_RULE_TYPE_MAX];
++	uint8_t zone_id;
++	uint8_t rule_id;
++	uint8_t dummy_pad[1];
++	uint16_t rule_magic;
++	uint16_t zone_magic;
++	uint16_t ipgrp_magic;
 +	uint8_t macaddr[6];
 +} user_hdr_t;
 +
@@ -360,14 +363,6 @@ index 0000000..2027fd4
 +	utimes_t time_stamp;
 +	uint64_t recv_bytes, xmit_bytes;
 +	uint64_t recv_pkts, xmit_pkts; /* statistics */
-+
-+	/* sipgrp dipgrp szone dzone */
-+	uint64_t src_ipgrp_bits;
-+	uint64_t dst_ipgrp_bits;
-+	uint8_t src_zone_id;
-+	uint8_t dst_zone_id;
-+#define INFO_STATUS_VALID_BIT (1<<0)
-+	uint16_t info_status; /* flow node status valid or not */
 +} flow_hdr_t;
 +/* end of comm */
 +
