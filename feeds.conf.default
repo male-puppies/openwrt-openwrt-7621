@@ -7,3 +7,4 @@ src-git targets https://github.com/male-puppies/openwrt-targets-puppies.git
 src-git oldpackages https://github.com/male-puppies/openwrt-oldpackages-puppies.git
 src-git puppies https://github.com/male-puppies/openwrt-ac-puppies.git
 #src-link custom /usr/src/openwrt/custom-feed
+src-link qca ../qca
