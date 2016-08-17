@@ -432,7 +432,7 @@ index 53abf00..60c37af 100644
  
 diff --git a/kernel/nos_track.c b/kernel/nos_track.c
 new file mode 100644
-index 0000000..5f99a6b
+index 0000000..59a3ca0
 --- /dev/null
 +++ b/kernel/nos_track.c
 @@ -0,0 +1,571 @@
@@ -958,7 +958,7 @@ index 0000000..5f99a6b
 +{
 +	int ret;
 +
-+	nt_shm_base = alloc_bootmem(nt_shm_size);
++	nt_shm_base = alloc_bootmem_align(nt_shm_size, PAGE_SIZE);
 +	if (!nt_shm_base) {
 +		pr_warn("nos reservation failed - mem in use %lx\n", (unsigned long)nt_shm_base);
 +		return;
