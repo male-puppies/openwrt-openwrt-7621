@@ -166,6 +166,7 @@ load_qcawifi() {
 
 
 unload_qcawifi() {
+	return
 	for mod in $(cat /etc/modules.d/33-qca-wifi* | sed '1!G;h;$!d'); do
 		[ -d /sys/module/${mod} ] && rmmod ${mod}
 	done
