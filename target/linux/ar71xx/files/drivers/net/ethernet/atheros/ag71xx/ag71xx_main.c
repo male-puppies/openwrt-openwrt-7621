@@ -710,6 +710,9 @@ static int ag71xx_open(struct net_device *dev)
 	max_frame_len = ag71xx_max_frame_len(dev->mtu);
 	ag->rx_buf_size = SKB_DATA_ALIGN(max_frame_len + NET_SKB_PAD + NET_IP_ALIGN);
 
+	/* fixup hw init may failed */
+	ag71xx_hw_init(ag);
+
 	/* setup max frame length */
 	ag71xx_wr(ag, AG71XX_REG_MAC_MFL, max_frame_len);
 	ag71xx_hw_set_macaddr(ag, dev->dev_addr);
@@ -922,6 +925,7 @@ static void ag71xx_restart_work_func(struct work_struct *work)
 
 	rtnl_lock();
 	ag71xx_hw_disable(ag);
+	ag71xx_hw_init(ag);
 	ag71xx_hw_enable(ag);
 	if (ag->link)
 		__ag71xx_link_adjust(ag, false);

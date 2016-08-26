@@ -39,10 +39,11 @@
 #define AP143_GPIO_LED_STATUS		13
 
 #define AP143_GPIO_LED_WAN		4
-#define AP143_GPIO_LED_LAN1		16
-#define AP143_GPIO_LED_LAN2		15
-#define AP143_GPIO_LED_LAN3		14
-#define AP143_GPIO_LED_LAN4		11
+/* ROY: fixup qca95xx board ether LED reverted... */
+#define AP143_GPIO_LED_LAN1		11
+#define AP143_GPIO_LED_LAN2		14
+#define AP143_GPIO_LED_LAN3		15
+#define AP143_GPIO_LED_LAN4		16
 
 #define AP143_GPIO_BTN_WPS		17
 
