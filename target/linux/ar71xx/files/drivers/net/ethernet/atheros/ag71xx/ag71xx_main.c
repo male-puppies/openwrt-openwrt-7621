@@ -489,6 +489,8 @@ static void ag71xx_hw_init(struct ag71xx *ag)
 	struct ag71xx_platform_data *pdata = ag71xx_get_pdata(ag);
 	u32 reset_mask = pdata->reset_bit;
 
+	pr_info("ag71xx hardware reset...\n");
+
 	ag71xx_hw_stop(ag);
 
 	if (pdata->is_ar724x) {
