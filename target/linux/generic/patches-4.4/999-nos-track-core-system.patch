@@ -107,7 +107,7 @@ index 0000000..5425992
 +#endif /* _NOS_TRACK_H */
 diff --git a/include/linux/nos_track_priv.h b/include/linux/nos_track_priv.h
 new file mode 100644
-index 0000000..82f162f
+index 0000000..5b87391
 --- /dev/null
 +++ b/include/linux/nos_track_priv.h
 @@ -0,0 +1,92 @@
@@ -180,13 +180,13 @@ index 0000000..82f162f
 +struct nos_track_stats {
 +	atomic64_t nr_flow_alloc;
 +	atomic64_t nr_flow_free;
-+	atomic64_t nr_ring_drop;
++	atomic64_t nr_flow_drop;
 +};
 +
 +extern void* nos_track_cap_base;
++extern void* nos_stat_info_base;
 +extern uint32_t nos_track_cap_size;
 +extern uint32_t nos_user_info_max, nos_flow_info_max;
-+extern struct nos_track_stats *nos_track_stats;
 +
 +extern uint32_t nos_auth_no_flow_timeout;
 +
@@ -432,10 +432,10 @@ index 53abf00..60c37af 100644
  
 diff --git a/kernel/nos_track.c b/kernel/nos_track.c
 new file mode 100644
-index 0000000..59a3ca0
+index 0000000..50ea954
 --- /dev/null
 +++ b/kernel/nos_track.c
-@@ -0,0 +1,571 @@
+@@ -0,0 +1,579 @@
 +#include <linux/nos_track.h>
 +#include <linux/nos_mempool.h>
 +#include <linux/bootmem.h>
@@ -453,17 +453,22 @@ index 0000000..59a3ca0
 +uint32_t 	nt_cap_block_sz = 0;
 +uint32_t 	nt_user_offset = 0;
 +uint32_t 	nt_flow_offset = 0;
++uint32_t 	nt_stat_offset = 0;
++uint32_t 	nt_stat_size = 0;
 +
 +/* for modules use */
 +void 		*nos_track_cap_base = NULL;
 +uint32_t 	nos_track_cap_size = 0;
 +uint32_t 	nos_user_info_max, nos_flow_info_max;
-+struct nos_track_stats *nos_track_stats;
++
++void*   nos_stat_info_base;
++struct  nos_track_stats nos_track_stats;
 +
 +EXPORT_SYMBOL(nt_cap_block_sz);
 +EXPORT_SYMBOL(nos_track_cap_base);
 +EXPORT_SYMBOL(nos_track_cap_size);
 +EXPORT_SYMBOL(nos_track_stats);
++EXPORT_SYMBOL(nos_stat_info_base);
 +EXPORT_SYMBOL(nos_user_info_max);
 +EXPORT_SYMBOL(nos_flow_info_max);
 +
@@ -700,7 +705,7 @@ index 0000000..59a3ca0
 +	track->flow = nos_flow_info_init(flow, tuple);
 +	track->ui_src = &nos_user_info_base[track->flow->ui_src_id];
 +	track->ui_dst = &nos_user_info_base[track->flow->ui_dst_id];
-+	atomic64_inc(&nos_track_stats->nr_flow_alloc);
++	atomic64_inc(&nos_track_stats.nr_flow_alloc);
 +
 +	memset(&track->tbq, 0, sizeof(track->tbq));
 +
@@ -717,6 +722,7 @@ index 0000000..59a3ca0
 +	track->flow = NULL;
 +	track->ui_src = NULL;
 +	track->ui_dst = NULL;
++	atomic64_inc(&nos_track_stats.nr_flow_drop);
 +	return -1;
 +}
 +EXPORT_SYMBOL(nos_track_alloc);
@@ -752,7 +758,7 @@ index 0000000..59a3ca0
 +
 +	nos_mempool_put(&nos_flow_track_pool, flow);
 +
-+	atomic64_inc(&nos_track_stats->nr_flow_free);
++	atomic64_inc(&nos_track_stats.nr_flow_free);
 +}
 +EXPORT_SYMBOL(nos_track_free);
 +
@@ -854,21 +860,23 @@ index 0000000..59a3ca0
 +
 +	nos_user_info_base = base + nos_track_cap_size;
 +	nos_flow_info_base = (void *)(nos_user_info_base + nos_user_track_max);
-+	nos_track_stats = (void *)(nos_flow_info_base + nos_flow_track_max);
++	nos_stat_info_base = (void *)(nos_flow_info_base + nos_flow_track_max);
++	nt_stat_offset = (void *)nos_stat_info_base - base;
++	nt_stat_size = nt_shm_size - nt_stat_offset;
 +
 +	nt_user_offset = (unsigned long)nos_user_info_base - (unsigned long)nos_track_cap_base;
 +	nt_flow_offset = (unsigned long)nos_flow_info_base - (unsigned long)nos_track_cap_base;
 +
 +	printk("nos shm: %p size: %x\n", nt_shm_base, nt_shm_size);
 +
-+	printk("nos_user_info_base: %p (phys: %llx)\n",
-+		nos_user_info_base, virt_to_phys(nos_user_info_base));
-+	printk("nos_flow_info_base: %p (phys: %llx)\n",
-+		nos_flow_info_base, virt_to_phys(nos_flow_info_base));
-+	printk("nos_track_stats: %p (phys: %llx)\n",
-+		nos_track_stats, virt_to_phys(nos_track_stats));
++	printk("nos_user_info_base: %p (phys: %lx)\n",
++		nos_user_info_base, (long)virt_to_phys(nos_user_info_base));
++	printk("nos_flow_info_base: %p (phys: %lx)\n",
++		nos_flow_info_base, (long)virt_to_phys(nos_flow_info_base));
++	printk("nos_stat_info_base: %p (phys: %lx)\n",
++		nos_stat_info_base, (long)virt_to_phys(nos_stat_info_base));
 +
-+	if (virt_to_phys(nos_track_stats - 1) > nosmem_res.end) {
++	if (virt_to_phys(nos_stat_info_base - 1) > nosmem_res.end) {
 +		printk("nosmem_res oom: [%llu - %llu]\n", (uint64_t)nosmem_res.start, (uint64_t)nosmem_res.end);
 +		return -1;
 +	}
@@ -935,7 +943,7 @@ index 0000000..59a3ca0
 +	INIT_LIST_HEAD(&nos_track_events.list);
 +	spin_lock_init(&nos_track_events.lock);
 +
-+	printk("nos_track_init() OK [user size: %lu, flow size: %lu]\n",
++	printk("nos_track_init() OK [user size: %u, flow size: %u]\n",
 +		sizeof(struct nos_user_info), sizeof(struct nos_flow_info));
 +	printk("\t[user priv size: %lu, flow priv size: %lu]\n",
 +		NOS_USER_DATA_SIZE, NOS_FLOW_DATA_SIZE);
@@ -1008,10 +1016,10 @@ index 0000000..59a3ca0
 +}
 +__setup("ntrack_mem", set_ntrack_mem_size);
 diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index dc6858d..ce53d5f 100644
+index dc6858d..546577e 100644
 --- a/kernel/sysctl.c
 +++ b/kernel/sysctl.c
-@@ -276,6 +276,13 @@ static int min_extfrag_threshold;
+@@ -276,6 +276,16 @@ static int min_extfrag_threshold;
  static int max_extfrag_threshold = 1000;
  #endif
  
@@ -1020,12 +1028,15 @@ index dc6858d..ce53d5f 100644
 +extern uint32_t nt_cap_block_sz;
 +extern uint32_t nt_user_offset;
 +extern uint32_t nt_flow_offset;
++extern uint32_t nt_stat_offset;
++extern uint32_t nt_stat_size;
 +extern uint32_t nos_user_info_max, nos_flow_info_max;
++extern struct nos_track_stats nos_track_stats;
 +
  static struct ctl_table kern_table[] = {
  	{
  		.procname	= "sched_child_runs_first",
-@@ -284,6 +291,55 @@ static struct ctl_table kern_table[] = {
+@@ -284,6 +294,90 @@ static struct ctl_table kern_table[] = {
  		.mode		= 0644,
  		.proc_handler	= proc_dointvec,
  	},
@@ -1065,11 +1076,46 @@ index dc6858d..ce53d5f 100644
 +		.proc_handler	= proc_dointvec,
 +	},
 +	{
++		.procname	= "nt_stat_offset",
++		.data		= &nt_stat_offset,
++		.maxlen		= sizeof(unsigned int),
++		.mode		= 0444,
++		.proc_handler	= proc_dointvec,
++	},
++	{
++		.procname	= "nt_stat_size",
++		.data		= &nt_stat_size,
++		.maxlen		= sizeof(unsigned int),
++		.mode		= 0444,
++		.proc_handler	= proc_dointvec,
++	},
++	{
 +		.procname	= "nt_flow_max",
 +		.data		= &nos_flow_info_max,
 +		.maxlen		= sizeof(unsigned int),
 +		.mode		= 0444,
 +		.proc_handler	= proc_dointvec,
++	},
++	{
++		.procname	= "nt_flow_alloc",
++		.data		= &nos_track_stats.nr_flow_alloc,
++		.maxlen		= sizeof(nos_track_stats.nr_flow_alloc),
++		.mode		= 0444,
++		.proc_handler	= proc_doulongvec_minmax,
++	},
++	{
++		.procname	= "nt_flow_free",
++		.data		= &nos_track_stats.nr_flow_free,
++		.maxlen		= sizeof(nos_track_stats.nr_flow_free),
++		.mode		= 0444,
++		.proc_handler	= proc_doulongvec_minmax,
++	},
++	{
++		.procname	= "nt_flow_drop",
++		.data		= &nos_track_stats.nr_flow_drop,
++		.maxlen		= sizeof(nos_track_stats.nr_flow_drop),
++		.mode		= 0444,
++		.proc_handler	= proc_doulongvec_minmax,
 +	},
 +	{
 +		.procname	= "nt_user_max",
