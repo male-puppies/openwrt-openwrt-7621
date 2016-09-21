@@ -107,10 +107,10 @@ index 0000000..5425992
 +#endif /* _NOS_TRACK_H */
 diff --git a/include/linux/nos_track_priv.h b/include/linux/nos_track_priv.h
 new file mode 100644
-index 0000000..5b87391
+index 0000000..2798241
 --- /dev/null
 +++ b/include/linux/nos_track_priv.h
-@@ -0,0 +1,92 @@
+@@ -0,0 +1,93 @@
 +#ifndef _NOS_TRACK_PRIV_H__
 +#define _NOS_TRACK_PRIV_H__
 +
@@ -197,6 +197,7 @@ index 0000000..5b87391
 +struct nos_user_track *nos_get_user_track(struct nos_track *track);
 +struct nos_flow_track *nos_get_flow_track(struct nos_track *track);
 +
++int nos_is_user(struct nos_user_info *ui);
 +void nos_user_info_hold(struct nos_user_info *ui);
 +
 +void nos_track_event_register(struct nos_track_event *ev);
@@ -432,10 +433,10 @@ index 53abf00..60c37af 100644
  
 diff --git a/kernel/nos_track.c b/kernel/nos_track.c
 new file mode 100644
-index 0000000..50ea954
+index 0000000..3ac38a3
 --- /dev/null
 +++ b/kernel/nos_track.c
-@@ -0,0 +1,579 @@
+@@ -0,0 +1,589 @@
 +#include <linux/nos_track.h>
 +#include <linux/nos_mempool.h>
 +#include <linux/bootmem.h>
@@ -565,11 +566,6 @@ index 0000000..50ea954
 +	fi->magic = ft->magic;
 +
 +	return fi;
-+}
-+
-+static inline int utrack_is_user(struct nos_user_track *ut)
-+{
-+	return ut->flags & NOS_USER_FLAGS_TYPE_USER;
 +}
 +
 +static struct nos_user_track *nos_user_track_get(uint32_t ip)
@@ -793,24 +789,39 @@ index 0000000..50ea954
 +}
 +EXPORT_SYMBOL(nos_get_flow_track);
 +
++static inline struct nos_user_track* ui_to_ut(struct nos_user_info *ui)
++{
++	int ut_id;
++
++	ut_id = ui - nos_user_info_base;
++	BUG_ON(ut_id < 0 || ut_id >= nos_user_track_max);
++	return nos_user_tracks + ut_id;
++}
++
++int nos_is_user(struct nos_user_info *ui)
++{
++	struct nos_user_track *ut;
++
++	ut = ui_to_ut(ui);
++	return ut->flags & NOS_USER_FLAGS_TYPE_USER;
++}
++EXPORT_SYMBOL(nos_is_user);
++
 +void nos_user_info_hold(struct nos_user_info *ui)
 +{
-+	int user_id;
-+	struct nos_user_track *user;
++	struct nos_user_track *ut;
 +
-+	user_id = ui - nos_user_info_base;
-+	BUG_ON(user_id < 0 || user_id >= nos_user_track_max);
-+	user = nos_user_tracks + user_id;
-+	spin_lock_bh(&user->lock);
-+	if (user->flags & NOS_USER_FLAGS_TYPE_USER)
++	ut = ui_to_ut(ui);
++	spin_lock_bh(&ut->lock);
++	if (ut->flags & NOS_USER_FLAGS_TYPE_USER)
 +		goto out;
-+	user->flags |= NOS_USER_FLAGS_TYPE_USER;
-+	++ user->refcnt;
-+	setup_timer(&user->timeout, utrack_timeout_fn, (unsigned long)user);
-+	user->timeout.expires = jiffies + NOS_USER_TRACK_INTERVAL;
-+	add_timer(&user->timeout);
++	ut->flags |= NOS_USER_FLAGS_TYPE_USER;
++	++ ut->refcnt;
++	setup_timer(&ut->timeout, utrack_timeout_fn, (unsigned long)ut);
++	ut->timeout.expires = jiffies + NOS_USER_TRACK_INTERVAL;
++	add_timer(&ut->timeout);
 +out:
-+	spin_unlock_bh(&user->lock);
++	spin_unlock_bh(&ut->lock);
 +}
 +EXPORT_SYMBOL(nos_user_info_hold);
 +
