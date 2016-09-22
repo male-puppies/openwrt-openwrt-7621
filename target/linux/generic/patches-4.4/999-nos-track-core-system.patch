@@ -281,7 +281,7 @@ index ebd10e6..0b8ae96 100644
 +header-y += nos_track.h
 diff --git a/include/uapi/linux/nos_track.h b/include/uapi/linux/nos_track.h
 new file mode 100644
-index 0000000..9065db9
+index 0000000..d4a8404
 --- /dev/null
 +++ b/include/uapi/linux/nos_track.h
 @@ -0,0 +1,95 @@
@@ -296,7 +296,7 @@ index 0000000..9065db9
 +#ifdef CONFIG_NTRACK_BOOTM_SIZE
 + #define NTRACK_BOOTM_SIZE (CONFIG_NTRACK_BOOTM_SIZE * (0x1<<20))
 +#else
-+ #define NTRACK_BOOTM_SIZE (64 * (0x1<<20))
++ #define NTRACK_BOOTM_SIZE (32 * (0x1<<20))
 +#endif
 +
 +#define NTRACK_PKT_PRIV_SIZE (128)
@@ -433,10 +433,10 @@ index 53abf00..60c37af 100644
  
 diff --git a/kernel/nos_track.c b/kernel/nos_track.c
 new file mode 100644
-index 0000000..3ac38a3
+index 0000000..5094396
 --- /dev/null
 +++ b/kernel/nos_track.c
-@@ -0,0 +1,589 @@
+@@ -0,0 +1,594 @@
 +#include <linux/nos_track.h>
 +#include <linux/nos_mempool.h>
 +#include <linux/bootmem.h>
@@ -450,7 +450,8 @@ index 0000000..3ac38a3
 +
 +/* for sysctl read */
 +void		*nt_shm_base = NULL;
-+uint32_t 	nt_shm_size = NTRACK_BOOTM_SIZE;
++uint32_t	nt_shm_size_prv = NTRACK_BOOTM_SIZE;
++uint32_t 	nt_shm_size = (NTRACK_BOOTM_SIZE >> 1) + NTRACK_BOOTM_SIZE;
 +uint32_t 	nt_cap_block_sz = 0;
 +uint32_t 	nt_user_offset = 0;
 +uint32_t 	nt_flow_offset = 0;
@@ -851,9 +852,9 @@ index 0000000..3ac38a3
 +
 +static int nos_vars_init(void)
 +{
-+	nos_track_cap_size = nt_shm_size / 4;
-+	nos_user_track_max = nt_shm_size / 4 / sizeof(user_info_t);
-+	nos_flow_track_max = nt_shm_size / 4 / sizeof(flow_info_t);
++	nos_track_cap_size = nt_shm_size_prv / 4;
++	nos_user_track_max = nt_shm_size_prv / 2 / sizeof(user_info_t);
++	nos_flow_track_max = nt_shm_size_prv / 2 / sizeof(flow_info_t);
 +
 +	nos_user_track_hash_size = nos_user_track_max / 4;
 +
@@ -1003,22 +1004,26 @@ index 0000000..3ac38a3
 +	int ret;
 +
 +	if (*str++ != '=' || !*str) {
-+		nt_shm_size = NTRACK_BOOTM_SIZE;
++		nt_shm_size_prv = NTRACK_BOOTM_SIZE;
++		nt_shm_size = (nt_shm_size_prv >> 1) + nt_shm_size_prv;
 +		ret = 1;
 +		goto __finished;
 +	}
 +
-+	ret = kstrtouint(str, 0, &nt_shm_size);
++	ret = kstrtouint(str, 0, &nt_shm_size_prv);
 +	if(ret) {
-+		nt_shm_size = NTRACK_BOOTM_SIZE;
++		nt_shm_size_prv = NTRACK_BOOTM_SIZE;
++		nt_shm_size = (nt_shm_size_prv >> 1) + nt_shm_size_prv;
 +		ret = 1;
 +		goto __finished;
 +	}
 +
-+	if(nt_shm_size > 0 && nt_shm_size <= 64) {
-+		nt_shm_size = (nt_shm_size<<20);
++	if(nt_shm_size_prv > 0 && nt_shm_size_prv <= 64) {
++		nt_shm_size_prv = (nt_shm_size_prv<<20);
++		nt_shm_size = (nt_shm_size_prv >> 1) + nt_shm_size_prv;
 +	} else {
-+		nt_shm_size = NTRACK_BOOTM_SIZE;
++		nt_shm_size_prv = NTRACK_BOOTM_SIZE;
++		nt_shm_size = (nt_shm_size_prv >> 1) + nt_shm_size_prv;
 +	}
 +
 +__finished:
