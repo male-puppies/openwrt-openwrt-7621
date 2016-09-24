@@ -36,7 +36,8 @@ om5p-ac | \
 om5p-acv2 | \
 om5p | \
 tube2h | \
-wndr3700)
+wndr3700 | \
+ap143)
 	ubootenv_add_uci_config "/dev/mtd1" "0x0" "0x10000" "0x10000"
 	;;
 alfa-ap96 | \
