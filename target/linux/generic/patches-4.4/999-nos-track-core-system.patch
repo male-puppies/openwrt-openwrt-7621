@@ -433,10 +433,10 @@ index 53abf00..60c37af 100644
  
 diff --git a/kernel/nos_track.c b/kernel/nos_track.c
 new file mode 100644
-index 0000000..5094396
+index 0000000..6ee4a61
 --- /dev/null
 +++ b/kernel/nos_track.c
-@@ -0,0 +1,594 @@
+@@ -0,0 +1,595 @@
 +#include <linux/nos_track.h>
 +#include <linux/nos_mempool.h>
 +#include <linux/bootmem.h>
@@ -603,12 +603,13 @@ index 0000000..5094396
 +	user->ip = ip;
 +	user->refcnt = 1;
 +	user->magic = atomic_add_return(2, &nos_user_magic);
++	user->flags = 0;
++	user->tbq = NULL;
 +	spin_lock_init(&user->lock);
 +
 +	nos_user_info_init(user);
 +
 +	hlist_add_head(&user->hash_node, slot);
-+	user->tbq = NULL;
 +
 +#if 0
 +	printk("[nos_track] ADD USER: %pI4h\t(%6d / %6d)\n",
