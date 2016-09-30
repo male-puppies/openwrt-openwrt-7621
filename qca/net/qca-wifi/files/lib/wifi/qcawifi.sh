@@ -76,7 +76,7 @@ scan_qcawifi() {
 
 		config_get ifname "$vif" ifname
 		config_set "$vif" ifname "${ifname:-$vifname}"
-		
+
 		config_get mode "$vif" mode
 		case "$mode" in
 			adhoc|sta|ap|monitor|wrap)
@@ -204,6 +204,16 @@ disable_qcawifi() {
 			}
 		}
 	done
+
+	#kill all hostapd process
+	[ -d /var/hostapd-${device} ] && { \
+		cd /var/hostapd-${device}
+		for dev in *;do
+			[ -e /var/hostapd-${device}/${dev} ] && { \
+				$(ps | grep hostapd | grep ${dev}.pid | awk '{print $1}' | xargs kill)
+			}
+		done
+	}
 
 	nrvaps=$(find /sys/class/net/ -name 'ath*'|wc -l)
 	[ ${nrvaps} -gt 0 ] || unload_qcawifi
@@ -487,7 +497,7 @@ enable_qcawifi() {
 		config_get puren "$vif" puren
 		[ -n "$puren" ] && iwpriv "$ifname" puren "$puren"
 
-		iwconfig "$ifname" channel "$channel" >/dev/null 2>/dev/null 
+		iwconfig "$ifname" channel "$channel" >/dev/null 2>/dev/null
 
 		config_get_bool hidden "$vif" hidden 0
 		iwpriv "$ifname" hide_ssid "$hidden"
@@ -521,7 +531,7 @@ enable_qcawifi() {
 		case "$mode" in
 			sta|adhoc)
 				config_get addr "$vif" bssid
-				[ -z "$addr" ] || { 
+				[ -z "$addr" ] || {
 					iwconfig "$ifname" ap "$addr"
 				}
 			;;
