@@ -1,10 +1,10 @@
 #
 # Copyright (c) 2014, The Linux Foundation. All rights reserved.
-# 
+#
 #  Permission to use, copy, modify, and/or distribute this software for any
 #  purpose with or without fee is hereby granted, provided that the above
 #  copyright notice and this permission notice appear in all copies.
-# 
+#
 #  THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
 #  WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
 #  MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
@@ -544,6 +544,10 @@ EOF
 	if [ $wps_vap_tie_dbdc -ne 0 ]; then
 		echo -e "/var/run/hostapd-$ifname.conf \c\h" >> /tmp/hostapd_conf_filename
 	else
+		[ -f /var/run/wifi-$ifname.pid ] && { \
+			echo "hostapd-kill runway hostapd process:$(cat /var/run/wifi-$ifname.pid)"
+			kill "$(cat /var/run/wifi-$ifname.pid)"
+		}
 		hostapd -P /var/run/wifi-$ifname.pid -B /var/run/hostapd-$ifname.conf
 
 		if [ -n "$wps_possible" -a -n "$config_methods" ]; then

@@ -206,10 +206,11 @@ disable_qcawifi() {
 	done
 
 	#kill all hostapd process
-	[ -d /var/hostapd-${device} ] && { \
-		cd /var/hostapd-${device}
+	[ -d /var/run/hostapd-${device} ] && { \
+		cd /var/run/hostapd-${device}
 		for dev in *;do
-			[ -e /var/hostapd-${device}/${dev} ] && { \
+			[ -e /var/run/hostapd-${device}/${dev} ] && { \
+				echo "qcawifi-kill runway hostapd process:$(ps | grep hostapd | grep ${dev}.pid | awk '{print $1}')"
 				$(ps | grep hostapd | grep ${dev}.pid | awk '{print $1}' | xargs kill)
 			}
 		done
