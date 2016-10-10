@@ -107,7 +107,7 @@ index 0000000..5425992
 +#endif /* _NOS_TRACK_H */
 diff --git a/include/linux/nos_track_priv.h b/include/linux/nos_track_priv.h
 new file mode 100644
-index 0000000..2798241
+index 0000000..7d81ca5
 --- /dev/null
 +++ b/include/linux/nos_track_priv.h
 @@ -0,0 +1,93 @@
@@ -174,7 +174,7 @@ index 0000000..2798241
 +struct nos_track_event {
 +	struct list_head list;
 +	void (* on_user_free)(struct nos_user_track *);
-+	void (* on_flow_free)(struct tbq_flow_track *);
++	void (* on_flow_free)(struct nos_track *);
 +};
 +
 +struct nos_track_stats {
@@ -433,10 +433,10 @@ index 53abf00..60c37af 100644
  
 diff --git a/kernel/nos_track.c b/kernel/nos_track.c
 new file mode 100644
-index 0000000..6ee4a61
+index 0000000..e6a2dca
 --- /dev/null
 +++ b/kernel/nos_track.c
-@@ -0,0 +1,595 @@
+@@ -0,0 +1,599 @@
 +#include <linux/nos_track.h>
 +#include <linux/nos_mempool.h>
 +#include <linux/bootmem.h>
@@ -641,7 +641,9 @@ index 0000000..6ee4a61
 +
 +	spin_lock_bh(&nos_track_events.lock);
 +	list_for_each_entry(ev, &nos_track_events.list, list) {
-+		ev->on_user_free(user);
++		if(ev->on_user_free) {
++			ev->on_user_free(user);
++		}
 +	}
 +	spin_unlock_bh(&nos_track_events.lock);
 +
@@ -745,7 +747,9 @@ index 0000000..6ee4a61
 +
 +	spin_lock_bh(&nos_track_events.lock);
 +	list_for_each_entry(ev, &nos_track_events.list, list) {
-+		ev->on_flow_free(&track->tbq);
++		if(ev->on_flow_free) {
++			ev->on_flow_free(track);
++		}
 +	}
 +	spin_unlock_bh(&nos_track_events.lock);
 +
