@@ -87,6 +87,13 @@ define Device/firewrt
 endef
 TARGET_DEVICES += firewrt
 
+define Device/puppies
+  DTS := PUPPIES
+  IMAGE_SIZE := $(ralink_default_fw_size_16M)
+  DEVICE_TITLE := Puppies Device
+endef
+TARGET_DEVICES += puppies
+
 define Device/pbr-m1
   DTS := PBR-M1
   IMAGE_SIZE := $(ralink_default_fw_size_16M)
@@ -170,6 +177,9 @@ define Device/sk-wb8
   DEVICE_PACKAGES := kmod-usb3 kmod-ledtrig-usbdev uboot-envtools
 endef
 TARGET_DEVICES += sk-wb8
+
+# XXX: build puppies only
+TARGET_DEVICES = puppies
 
 # FIXME: is this still needed?
 define Image/Prepare

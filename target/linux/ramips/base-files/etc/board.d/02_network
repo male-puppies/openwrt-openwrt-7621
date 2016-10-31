@@ -70,6 +70,7 @@ ramips_setup_interfaces()
 	dir-610-a1|\
 	dir-615-h1|\
 	firewrt|\
+	puppies|\
 	hlk-rm04|\
 	miwifi-mini|\
 	miwifi-nano|\
