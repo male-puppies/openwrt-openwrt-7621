@@ -178,6 +178,9 @@ ramips_board_detect() {
 	*"FireWRT")
 		name="firewrt"
 		;;
+	*"Openwrt Puppies")
+		name="puppies"
+		;;
 	*"Fonera 2.0N")
 		name="fonera20n"
 		;;
