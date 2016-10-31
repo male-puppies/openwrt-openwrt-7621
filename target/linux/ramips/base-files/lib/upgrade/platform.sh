@@ -56,6 +56,7 @@ platform_check_image() {
 	ex2700|\
 	f7c027|\
 	firewrt|\
+	puppies|\
 	fonera20n|\
 	freestation5|\
 	gl-mt300a|\
