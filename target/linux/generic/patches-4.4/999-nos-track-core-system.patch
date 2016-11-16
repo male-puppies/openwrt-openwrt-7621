@@ -1,8 +1,8 @@
 diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
-index 188e3e0..a831e03 100644
+index 6ad687d..8e5fa5b 100644
 --- a/arch/x86/mm/pat.c
 +++ b/arch/x86/mm/pat.c
-@@ -702,6 +702,8 @@ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
+@@ -746,6 +746,8 @@ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
  /* This check is needed to avoid cache aliasing when PAT is enabled */
  static inline int range_is_allowed(unsigned long pfn, unsigned long size)
  {
@@ -11,7 +11,7 @@ index 188e3e0..a831e03 100644
  	u64 from = ((u64)pfn) << PAGE_SHIFT;
  	u64 to = from + size;
  	u64 cursor = from;
-@@ -718,6 +720,7 @@ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
+@@ -762,6 +764,7 @@ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
  		cursor += PAGE_SIZE;
  		pfn++;
  	}
@@ -205,7 +205,7 @@ index 0000000..7d81ca5
 +
 +#endif /* _NOS_TRACK_PRIV_H__ */
 diff --git a/include/linux/skbuff.h b/include/linux/skbuff.h
-index 4fde618..af61a77 100644
+index d443d9a..ec1f04e 100644
 --- a/include/linux/skbuff.h
 +++ b/include/linux/skbuff.h
 @@ -39,6 +39,9 @@
@@ -1037,7 +1037,7 @@ index 0000000..e6a2dca
 +}
 +__setup("ntrack_mem", set_ntrack_mem_size);
 diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index dc6858d..546577e 100644
+index 999e025..b7c9c26 100644
 --- a/kernel/sysctl.c
 +++ b/kernel/sysctl.c
 @@ -276,6 +276,16 @@ static int min_extfrag_threshold;
@@ -1149,7 +1149,7 @@ index dc6858d..546577e 100644
  	{
  		.procname	= "sched_min_granularity_ns",
 diff --git a/net/core/skbuff.c b/net/core/skbuff.c
-index 9835d9a..decfad6 100644
+index 4968b5d..5cc0f9a 100644
 --- a/net/core/skbuff.c
 +++ b/net/core/skbuff.c
 @@ -776,6 +776,10 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
@@ -1164,7 +1164,7 @@ index 9835d9a..decfad6 100644
  	CHECK_SKB_FIELD(csum);
  	CHECK_SKB_FIELD(hash);
 diff --git a/net/netfilter/nf_conntrack_core.c b/net/netfilter/nf_conntrack_core.c
-index 86a3c6f..1bc08c5 100644
+index 86a3c6f..c735ffa 100644
 --- a/net/netfilter/nf_conntrack_core.c
 +++ b/net/netfilter/nf_conntrack_core.c
 @@ -889,6 +889,9 @@ void nf_conntrack_free(struct nf_conn *ct)
@@ -1185,22 +1185,28 @@ index 86a3c6f..1bc08c5 100644
  
  	if (!nf_ct_invert_tuple(&repl_tuple, tuple, l3proto, l4proto)) {
  		pr_debug("Can't invert tuple.\n");
-@@ -948,6 +952,14 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
+@@ -948,6 +952,20 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
  		timeouts = l4proto->get_timeouts(net);
  	}
  
-+	/* roy: nos track init nodes */
-+	nos_flow_tuple.ip_src = tuple->src.u3.ip;
-+	nos_flow_tuple.ip_dst = tuple->dst.u3.ip;
-+	nos_flow_tuple.port_src = tuple->src.u.all;
-+	nos_flow_tuple.port_dst = tuple->dst.u.all;
-+	nos_flow_tuple.proto = tuple->dst.protonum;
-+	nos_track_alloc(&ct->nos_track, &nos_flow_tuple, skb);
++	if ( !(ipv4_is_lbcast(tuple->src.u3.ip) || ipv4_is_lbcast(tuple->dst.u3.ip) ||
++			ipv4_is_loopback(tuple->src.u3.ip) || ipv4_is_loopback(tuple->dst.u3.ip) ||
++			ipv4_is_multicast(tuple->src.u3.ip) || ipv4_is_multicast(tuple->dst.u3.ip) ||
++			ipv4_is_zeronet(tuple->src.u3.ip) || ipv4_is_zeronet(tuple->dst.u3.ip)) )
++	{
++		/* roy: nos track init nodes */
++		nos_flow_tuple.ip_src = tuple->src.u3.ip;
++		nos_flow_tuple.ip_dst = tuple->dst.u3.ip;
++		nos_flow_tuple.port_src = tuple->src.u.all;
++		nos_flow_tuple.port_dst = tuple->dst.u.all;
++		nos_flow_tuple.proto = tuple->dst.protonum;
++		nos_track_alloc(&ct->nos_track, &nos_flow_tuple, skb);
++	}
 +
  	if (!l4proto->new(ct, skb, dataoff, timeouts)) {
  		nf_conntrack_free(ct);
  		pr_debug("init conntrack: can't track with proto module\n");
-@@ -1635,6 +1647,12 @@ int nf_conntrack_init_start(void)
+@@ -1635,6 +1653,12 @@ int nf_conntrack_init_start(void)
  	int max_factor = 8;
  	int i, ret, cpu;
  
