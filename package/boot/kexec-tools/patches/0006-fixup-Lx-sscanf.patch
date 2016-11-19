@@ -1,0 +1,238 @@
+diff --git a/kexec/arch/i386/crashdump-x86.c b/kexec/arch/i386/crashdump-x86.c
+index 77bdad5..fdaa89e 100644
+--- a/kexec/arch/i386/crashdump-x86.c
++++ b/kexec/arch/i386/crashdump-x86.c
+@@ -92,7 +92,7 @@ static int get_kernel_paddr(struct kexec_info *UNUSED(info),
+ 
+ 	if (parse_iomem_single("Kernel code\n", &start, NULL) == 0) {
+ 		elf_info->kern_paddr_start = start;
+-		dbgprintf("kernel load physical addr start = 0x%016Lx\n",
++		dbgprintf("kernel load physical addr start = 0x%016llx\n",
+ 			  (unsigned long long)start);
+ 		return 0;
+ 	}
+@@ -119,7 +119,7 @@ static unsigned long long get_kernel_stext_sym(void)
+ 	}
+ 
+ 	while(fgets(line, sizeof(line), fp) != NULL) {
+-		if (sscanf(line, "%Lx %c %s", &vaddr, &type, sym) != 3)
++		if (sscanf(line, "%llx %c %s", &vaddr, &type, sym) != 3)
+ 			continue;
+ 		if (strcmp(sym, stext) == 0) {
+ 			dbgprintf("kernel symbol %s vaddr = %16llx\n", stext, vaddr);
+@@ -275,22 +275,21 @@ static int get_crash_memory_ranges(struct memory_range **range, int *ranges,
+ 	}
+ 
+ 	while(fgets(line, sizeof(line), fp) != 0) {
+-		char *str;
+-		int type, consumed, count;
++		char str[512], *ptr = NULL;
++		int type, count;
+ 
+ 		if (memory_ranges >= CRASH_MAX_MEMORY_RANGES)
+ 			break;
+-		count = sscanf(line, "%Lx-%Lx : %n",
+-			&start, &end, &consumed);
+-		if (count != 2)
++		memset(str, 0, sizeof(str));
++		count = sscanf(line, "%llx-%llx : %s", &start, &end, str);
++		if (count != 3)
+ 			continue;
+-		str = line + consumed;
+-		dbgprintf("%016Lx-%016Lx : %s",
+-			start, end, str);
++		ptr = strstr(line, str);
++		dbgprintf("\t%016llx-%016llx : %s", start, end, ptr);
+ 		/* Only Dumping memory of type System RAM. */
+-		if (memcmp(str, "System RAM\n", 11) == 0) {
++		if (memcmp(ptr, "System RAM\n", 11) == 0) {
+ 			type = RANGE_RAM;
+-		} else if (memcmp(str, "ACPI Tables\n", 12) == 0) {
++		} else if (memcmp(ptr, "ACPI Tables\n", 12) == 0) {
+ 			/*
+ 			 * ACPI Tables area need to be passed to new
+ 			 * kernel with appropriate memmap= option. This
+@@ -299,11 +298,11 @@ static int get_crash_memory_ranges(struct memory_range **range, int *ranges,
+ 			 * initializing acpi tables in second kernel.
+ 			 */
+ 			type = RANGE_ACPI;
+-		} else if(memcmp(str,"ACPI Non-volatile Storage\n",26) == 0 ) {
++		} else if(memcmp(ptr,"ACPI Non-volatile Storage\n",26) == 0 ) {
+ 			type = RANGE_ACPI_NVS;
+-		} else if(memcmp(str,"reserved\n",9) == 0 ) {
++		} else if(memcmp(ptr,"reserved\n",9) == 0 ) {
+ 			type = RANGE_RESERVED;
+-		} else if (memcmp(str, "GART\n", 5) == 0) {
++		} else if (memcmp(ptr, "GART\n", 5) == 0) {
+ 			gart_start = start;
+ 			gart_end = end;
+ 			gart = 1;
+@@ -330,8 +329,7 @@ static int get_crash_memory_ranges(struct memory_range **range, int *ranges,
+ 			}
+ 		}
+ 		if (crash_reserved_mem[0].start >= mem_max) {
+-			fprintf(stderr, "Too small mem_max: 0x%llx.\n",
+-				mem_max);
++			fprintf(stderr, "Too small mem_max: 0x%llx.\n", mem_max);
+ 			return -1;
+ 		}
+ 		crash_reserved_mem[0].end = mem_max;
+@@ -341,13 +339,17 @@ static int get_crash_memory_ranges(struct memory_range **range, int *ranges,
+ 
+ 	for (i = 0; i < crash_reserved_mem_nr; i++)
+ 		if (exclude_region(&memory_ranges, crash_reserved_mem[i].start,
+-				crash_reserved_mem[i].end) < 0)
++				crash_reserved_mem[i].end) < 0) {
++			fprintf(stderr, "err: %s:%d\n", __func__, __LINE__);
+ 			return -1;
++		}
+ 
+ 	if (gart) {
+ 		/* exclude GART region if the system has one */
+-		if (exclude_region(&memory_ranges, gart_start, gart_end) < 0)
++		if (exclude_region(&memory_ranges, gart_start, gart_end) < 0) {
++			fprintf(stderr, "err: %s:%d\n", __func__, __LINE__);
+ 			return -1;
++		}
+ 	}
+ 	*range = crash_memory_range;
+ 	*ranges = memory_ranges;
+@@ -755,8 +757,7 @@ static int get_crash_notes(int cpu, uint64_t *addr, uint64_t *len)
+ 		*addr = x86__pa(vaddr + (cpu * MAX_NOTE_BYTES));
+ 		*len = MAX_NOTE_BYTES;
+ 
+-		dbgprintf("crash_notes addr = %Lx\n",
+-			  (unsigned long long)*addr);
++		dbgprintf("crash_notes addr = %llx\n", (unsigned long long)*addr);
+ 
+ 		fclose(fp);
+ 		return 0;
+diff --git a/kexec/arch/i386/kexec-x86-common.c b/kexec/arch/i386/kexec-x86-common.c
+index bc622e9..b5f4566 100644
+--- a/kexec/arch/i386/kexec-x86-common.c
++++ b/kexec/arch/i386/kexec-x86-common.c
+@@ -68,19 +68,17 @@ static int get_memory_ranges_proc_iomem(struct memory_range **range, int *ranges
+ 	}
+ 	while(fgets(line, sizeof(line), fp) != 0) {
+ 		unsigned long long start, end;
+-		char *str;
++		char str[512];
+ 		int type;
+-		int consumed;
+ 		int count;
+ 		if (memory_ranges >= MAX_MEMORY_RANGES)
+ 			break;
+-		count = sscanf(line, "%Lx-%Lx : %n",
+-			&start, &end, &consumed);
+-		if (count != 2)
++		memset(str, 0, sizeof(str));
++		count = sscanf(line, "%llx-%llx : %s", &start, &end, str);
++		if (count != 3)
+ 			continue;
+-		str = line + consumed;
+ 
+-		dbgprintf("%016Lx-%016Lx : %s", start, end, str);
++		dbgprintf("%016llx-%016llx : %s\n", start, end, str);
+ 
+ 		if (memcmp(str, "System RAM\n", 11) == 0) {
+ 			type = RANGE_RAM;
+@@ -101,7 +99,7 @@ static int get_memory_ranges_proc_iomem(struct memory_range **range, int *ranges
+ 		memory_range[memory_ranges].end = end;
+ 		memory_range[memory_ranges].type = type;
+ 
+-		dbgprintf("%016Lx-%016Lx : %x\n", start, end, type);
++		dbgprintf("%016llx-%016llx : %x\n", start, end, type);
+ 
+ 		memory_ranges++;
+ 	}
+diff --git a/kexec/crashdump.c b/kexec/crashdump.c
+index 15c1105..0b363c5 100644
+--- a/kexec/crashdump.c
++++ b/kexec/crashdump.c
+@@ -98,7 +98,7 @@ int get_crash_notes_per_cpu(int cpu, uint64_t *addr, uint64_t *len)
+ 	}
+ 	if (!fgets(line, sizeof(line), fp))
+ 		die("Cannot parse %s: %s\n", crash_notes, strerror(errno));
+-	count = sscanf(line, "%Lx", &temp);
++	count = sscanf(line, "%llx", &temp);
+ 	if (count != 1)
+ 		die("Cannot parse %s: %s\n", crash_notes, strerror(errno));
+ 	*addr = (uint64_t) temp;
+@@ -112,7 +112,7 @@ int get_crash_notes_per_cpu(int cpu, uint64_t *addr, uint64_t *len)
+ 		if (!fgets(line, sizeof(line), fp))
+ 			die("Cannot parse %s: %s\n",
+ 			    crash_notes_size, strerror(errno));
+-		count = sscanf(line, "%Lu", &temp);
++		count = sscanf(line, "%llu", &temp);
+ 		if (count != 1)
+ 			die("Cannot parse %s: %s\n",
+ 			    crash_notes_size, strerror(errno));
+@@ -120,7 +120,7 @@ int get_crash_notes_per_cpu(int cpu, uint64_t *addr, uint64_t *len)
+ 		fclose(fp);
+ 	}
+ 
+-	dbgprintf("%s: crash_notes addr = %Lx, size = %Lu\n", __FUNCTION__,
++	dbgprintf("%s: crash_notes addr = %llx, size = %llu\n", __FUNCTION__,
+ 		  (unsigned long long)*addr, (unsigned long long)*len);
+ 
+ 	return 0;
+@@ -141,7 +141,7 @@ static int get_vmcoreinfo(const char *kdump_info, uint64_t *addr, uint64_t *len)
+ 
+ 	if (!fgets(line, sizeof(line), fp))
+ 		die("Cannot parse %s: %s\n", kdump_info, strerror(errno));
+-	count = sscanf(line, "%Lx %Lx", &temp, &temp2);
++	count = sscanf(line, "%llx %llx", &temp, &temp2);
+ 	if (count != 2)
+ 		die("Cannot parse %s: %s\n", kdump_info, strerror(errno));
+ 
+diff --git a/kexec/kexec-iomem.c b/kexec/kexec-iomem.c
+index 485a2e8..411af2b 100644
+--- a/kexec/kexec-iomem.c
++++ b/kexec/kexec-iomem.c
+@@ -34,8 +34,7 @@ int kexec_iomem_for_each_line(char *match,
+ 	char line[MAX_LINE];
+ 	FILE *fp;
+ 	unsigned long long start, end, size;
+-	char *str;
+-	int consumed;
++	char str[512];
+ 	int count;
+ 	int nr = 0;
+ 
+@@ -44,14 +43,18 @@ int kexec_iomem_for_each_line(char *match,
+ 		die("Cannot open %s\n", iomem);
+ 
+ 	while(fgets(line, sizeof(line), fp) != 0) {
+-		count = sscanf(line, "%Lx-%Lx : %n", &start, &end, &consumed);
+-		if (count != 2)
++		char *ptr = NULL;
++		memset(str, 0, sizeof(str));
++		count = sscanf(line, "%llx-%llx : %s", &start, &end, str);
++		if (count != 3)
+ 			continue;
+-		str = line + consumed;
++
++		ptr = strstr(line, str);
++		dbgprintf(" iomem: %016llx %016llx : %s", start, end, ptr);
+ 		size = end - start + 1;
+-		if (!match || memcmp(str, match, strlen(match)) == 0) {
++		if (!match || memcmp(ptr, match, strlen(match)) == 0) {
+ 			if (callback
+-			    && callback(data, nr, str, start, size) < 0) {
++			    && callback(data, nr, ptr, start, size) < 0) {
+ 				break;
+ 			}
+ 			nr++;
+diff --git a/kexec/kexec.c b/kexec/kexec.c
+index b088916..f60f19d 100644
+--- a/kexec/kexec.c
++++ b/kexec/kexec.c
+@@ -60,7 +60,7 @@ void dbgprint_mem_range(const char *prefix, struct memory_range *mr, int nr_mr)
+ 	int i;
+ 	dbgprintf("%s\n", prefix);
+ 	for (i = 0; i < nr_mr; i++) {
+-		dbgprintf("%016llx-%016llx (%d)\n", mr[i].start,
++		dbgprintf(" - %016llx-%016llx (%d)\n", mr[i].start,
+ 			  mr[i].end, mr[i].type);
+ 	}
+ }

@@ -1,0 +1,15 @@
+diff --git a/vmcore-dmesg/vmcore-dmesg.c b/vmcore-dmesg/vmcore-dmesg.c
+index 0364636..07e5056 100644
+--- a/vmcore-dmesg/vmcore-dmesg.c
++++ b/vmcore-dmesg/vmcore-dmesg.c
+@@ -18,6 +18,10 @@
+ #include <inttypes.h>
+ #include <ctype.h>
+ 
++#ifndef loff_t
++ typedef long loff_t;
++#endif
++
+ /* The 32bit and 64bit note headers make it clear we don't care */
+ typedef Elf32_Nhdr Elf_Nhdr;
+ 
