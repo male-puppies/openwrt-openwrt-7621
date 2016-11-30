@@ -496,7 +496,7 @@ define KernelPackage/e1000e
   DEPENDS:=@PCIE_SUPPORT +kmod-ptp
   KCONFIG:=CONFIG_E1000E
   FILES:=$(LINUX_DIR)/drivers/net/ethernet/intel/e1000e/e1000e.ko
-  AUTOLOAD:=$(call AutoProbe,e1000e)
+  AUTOLOAD:=$(call AutoLoad,35,e1000e)
 endef
 
 define KernelPackage/e1000e/description
@@ -514,7 +514,7 @@ define KernelPackage/igb
     CONFIG_IGB_HWMON=n \
     CONFIG_IGB_DCA=n
   FILES:=$(LINUX_DIR)/drivers/net/ethernet/intel/igb/igb.ko
-  AUTOLOAD:=$(call AutoLoad,35,igb)
+  AUTOLOAD:=$(call AutoLoad,36,igb)
 endef
 
 define KernelPackage/igb/description
