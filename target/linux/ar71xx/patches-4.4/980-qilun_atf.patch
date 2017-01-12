@@ -1,0 +1,59 @@
+diff -ruN linux-4.4.14_old/include/linux/skbuff.h linux-4.4.14_new/include/linux/skbuff.h
+--- linux-4.4.14_old/include/linux/skbuff.h	2017-01-05 00:08:14.921507113 +0800
++++ linux-4.4.14_new/include/linux/skbuff.h	2017-01-04 15:12:57.000000000 +0800
+@@ -199,6 +199,14 @@
+ };
+ #endif
+ 
++typedef struct qmos_skb_info
++{
++	unsigned char    wl_type;
++	unsigned char    wl_ctrl;
++	unsigned char    wl_args;
++	unsigned char    reserved;
++}qmos_skb_info;
++
+ struct sk_buff_head {
+ 	/* These two members must be first. */
+ 	struct sk_buff	*next;
+@@ -715,6 +723,8 @@
+ 
+ 	/* ntrack reserved for packet parser. */
+ 	unsigned char ntrack_priv[NTRACK_PKT_PRIV_SIZE];
++	struct list_head    skb_node;
++	qmos_skb_info       ql_atf_info;
+ };
+ 
+ #ifdef __KERNEL__
+diff -ruN linux-4.4.14_old/net/core/skbuff.c linux-4.4.14_new/net/core/skbuff.c
+--- linux-4.4.14_old/net/core/skbuff.c	2017-01-05 00:09:01.451506892 +0800
++++ linux-4.4.14_new/net/core/skbuff.c	2017-01-04 15:49:49.000000000 +0800
+@@ -255,6 +255,9 @@
+ 	skb->mac_header = (typeof(skb->mac_header))~0U;
+ 	skb->transport_header = (typeof(skb->transport_header))~0U;
+ 
++	memset(&skb->ql_atf_info, 0, sizeof(skb->ql_atf_info));
++	INIT_LIST_HEAD((&skb->skb_node));	
++	
+ 	/* make sure we initialize shinfo sequentially */
+ 	shinfo = skb_shinfo(skb);
+ 	memset(shinfo, 0, offsetof(struct skb_shared_info, dataref));
+@@ -269,6 +272,9 @@
+ 		kmemcheck_annotate_bitfield(&fclones->skb2, flags1);
+ 		skb->fclone = SKB_FCLONE_ORIG;
+ 		atomic_set(&fclones->fclone_ref, 1);
++		
++		memset(&fclones->skb2.ql_atf_info, 0, sizeof(skb->ql_atf_info));
++		INIT_LIST_HEAD((&fclones->skb2.skb_node));
+ 
+ 		fclones->skb2.fclone = SKB_FCLONE_CLONE;
+ 		fclones->skb2.pfmemalloc = pfmemalloc;
+@@ -1205,6 +1211,8 @@
+ 	skb->hdr_len  = 0;
+ 	skb->nohdr    = 0;
+ 	atomic_set(&skb_shinfo(skb)->dataref, 1);
++	memset(&skb->ql_atf_info, 0, sizeof(skb->ql_atf_info));
++	INIT_LIST_HEAD((&skb->skb_node));
+ 	return 0;
+ 
+ nofrags:
