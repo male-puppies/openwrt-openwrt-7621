@@ -433,10 +433,10 @@ index 53abf00..60c37af 100644
  
 diff --git a/kernel/nos_track.c b/kernel/nos_track.c
 new file mode 100644
-index 0000000..e6a2dca
+index 0000000..f6f1e90
 --- /dev/null
 +++ b/kernel/nos_track.c
-@@ -0,0 +1,599 @@
+@@ -0,0 +1,612 @@
 +#include <linux/nos_track.h>
 +#include <linux/nos_mempool.h>
 +#include <linux/bootmem.h>
@@ -866,12 +866,21 @@ index 0000000..e6a2dca
 +	nos_user_info_max = nos_user_track_max;
 +	nos_flow_info_max = nos_flow_track_max;
 +
++	if (nos_track_cap_size <= 0) {
++		return -1;
++	}
++
 +	return 0;
 +}
 +
 +static int nos_mmap_init(void)
 +{
-+	void *base = phys_to_virt((phys_addr_t)nt_shm_base);
++	void *base;
++	if (nt_shm_size == 0) {
++		printk("nos no shm reserved\n");
++		return -1;
++	}
++	base = phys_to_virt((phys_addr_t)nt_shm_base);
 +	nos_track_cap_base = base;
 +	printk("nos_track_cap_base: %p, size: %x\n", nos_track_cap_base, nos_track_cap_size);
 +
@@ -983,6 +992,10 @@ index 0000000..e6a2dca
 +{
 +	int ret;
 +
++	if (nt_shm_size == 0) {
++		nt_shm_base = 0;
++		return;
++	}
 +	nt_shm_base = alloc_bootmem_align(nt_shm_size, PAGE_SIZE);
 +	if (!nt_shm_base) {
 +		pr_warn("nos reservation failed - mem in use %lx\n", (unsigned long)nt_shm_base);
@@ -1164,7 +1177,7 @@ index 4968b5d..5cc0f9a 100644
  	CHECK_SKB_FIELD(csum);
  	CHECK_SKB_FIELD(hash);
 diff --git a/net/netfilter/nf_conntrack_core.c b/net/netfilter/nf_conntrack_core.c
-index 86a3c6f..c735ffa 100644
+index 86a3c6f..732cfe8 100644
 --- a/net/netfilter/nf_conntrack_core.c
 +++ b/net/netfilter/nf_conntrack_core.c
 @@ -889,6 +889,9 @@ void nf_conntrack_free(struct nf_conn *ct)
@@ -1206,14 +1219,13 @@ index 86a3c6f..c735ffa 100644
  	if (!l4proto->new(ct, skb, dataoff, timeouts)) {
  		nf_conntrack_free(ct);
  		pr_debug("init conntrack: can't track with proto module\n");
-@@ -1635,6 +1653,12 @@ int nf_conntrack_init_start(void)
+@@ -1635,6 +1653,11 @@ int nf_conntrack_init_start(void)
  	int max_factor = 8;
  	int i, ret, cpu;
  
 +	ret = nos_track_init();
 +	if (ret < 0) {
-+		printk("%s: nos track init failed. %d\n", __FUNCTION__, ret);
-+		return ret;
++		printk("%s: nos track init failed. %d, ignore!!!\n", __FUNCTION__, ret);
 +	}
 +
  	for (i = 0; i < CONNTRACK_LOCKS; i++)
