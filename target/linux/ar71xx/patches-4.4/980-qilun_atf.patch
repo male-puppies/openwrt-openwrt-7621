@@ -1,0 +1,59 @@
+diff -uNr a/include/linux/skbuff.h b/include/linux/skbuff.h
+--- a/include/linux/skbuff.h	2017-01-13 18:36:33.767448842 +0800
++++ b/include/linux/skbuff.h	2017-01-13 18:18:29.560792159 +0800
+@@ -199,6 +199,14 @@
+ };
+ #endif
+ 
++typedef struct qmos_skb_info
++{
++	unsigned char    wl_type;
++	unsigned char    wl_ctrl;
++	unsigned char    wl_args;
++	unsigned char    reserved;
++}qmos_skb_info;
++
+ struct sk_buff_head {
+ 	/* These two members must be first. */
+ 	struct sk_buff	*next;
+@@ -715,6 +723,8 @@
+ 
+ 	/* ntrack reserved for packet parser. */
+ 	unsigned char ntrack_priv[NTRACK_PKT_PRIV_SIZE];
++	struct list_head    skb_node;
++	qmos_skb_info       ql_atf_info;
+ };
+ 
+ #ifdef __KERNEL__
+diff -uNr a/net/core/skbuff.c b/net/core/skbuff.c
+--- a/net/core/skbuff.c	2017-01-13 18:36:48.964115369 +0800
++++ b/net/core/skbuff.c	2017-01-13 18:46:38.340776610 +0800
+@@ -255,6 +255,9 @@
+ 	skb->mac_header = (typeof(skb->mac_header))~0U;
+ 	skb->transport_header = (typeof(skb->transport_header))~0U;
+ 
++	memset(&skb->ql_atf_info, 0, sizeof(skb->ql_atf_info));
++	INIT_LIST_HEAD((&skb->skb_node));
++
+ 	/* make sure we initialize shinfo sequentially */
+ 	shinfo = skb_shinfo(skb);
+ 	memset(shinfo, 0, offsetof(struct skb_shared_info, dataref));
+@@ -270,6 +273,9 @@
+ 		skb->fclone = SKB_FCLONE_ORIG;
+ 		atomic_set(&fclones->fclone_ref, 1);
+ 
++		memset(&fclones->skb2.ql_atf_info, 0, sizeof(skb->ql_atf_info));
++		INIT_LIST_HEAD((&fclones->skb2.skb_node));
++
+ 		fclones->skb2.fclone = SKB_FCLONE_CLONE;
+ 		fclones->skb2.pfmemalloc = pfmemalloc;
+ 	}
+@@ -1205,6 +1211,8 @@
+ 	skb->hdr_len  = 0;
+ 	skb->nohdr    = 0;
+ 	atomic_set(&skb_shinfo(skb)->dataref, 1);
++	memset(&skb->ql_atf_info, 0, sizeof(skb->ql_atf_info));
++	INIT_LIST_HEAD((&skb->skb_node));
+ 	return 0;
+ 
+ nofrags:
