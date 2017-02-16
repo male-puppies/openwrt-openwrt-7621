@@ -1,0 +1,15 @@
+diff --git a/interface.c b/interface.c
+index a014111..b632c75 100644
+--- a/interface.c
++++ b/interface.c
+@@ -383,9 +383,9 @@ interface_main_dev_cb(struct device_user *dep, enum device_event ev)
+ 	case DEV_EVENT_ADD:
+ 		new_state = true;
+ 	case DEV_EVENT_REMOVE:
+-		interface_set_available(iface, new_state);
+ 		if (!new_state && dep->dev && dep->dev->external)
+ 			interface_set_main_dev(iface, NULL);
++		interface_set_available(iface, new_state);
+ 		break;
+ 	case DEV_EVENT_UP:
+ 		new_state = true;
