@@ -107,10 +107,10 @@ index 0000000..5425992
 +#endif /* _NOS_TRACK_H */
 diff --git a/include/linux/nos_track_priv.h b/include/linux/nos_track_priv.h
 new file mode 100644
-index 0000000..7d81ca5
+index 0000000..a4cea06
 --- /dev/null
 +++ b/include/linux/nos_track_priv.h
-@@ -0,0 +1,93 @@
+@@ -0,0 +1,94 @@
 +#ifndef _NOS_TRACK_PRIV_H__
 +#define _NOS_TRACK_PRIV_H__
 +
@@ -139,6 +139,7 @@ index 0000000..7d81ca5
 +
 +struct tbq_flow_track {
 +	struct list_head list;
++	uint16_t tbq_level;
 +	uint16_t dummy;
 +	uint16_t app_id;
 +	uint16_t uname_match;	//mo
@@ -281,7 +282,7 @@ index ebd10e6..0b8ae96 100644
 +header-y += nos_track.h
 diff --git a/include/uapi/linux/nos_track.h b/include/uapi/linux/nos_track.h
 new file mode 100644
-index 0000000..d4a8404
+index 0000000..0854147
 --- /dev/null
 +++ b/include/uapi/linux/nos_track.h
 @@ -0,0 +1,95 @@
@@ -323,7 +324,7 @@ index 0000000..d4a8404
 +	uint8_t u_grp_id;
 +	uint8_t zone_id;
 +	uint8_t rule_id;
-+	uint8_t dummy_pad[1];
++	uint8_t tbq_level;
 +	uint16_t rule_magic;
 +	uint16_t zone_magic;
 +	uint16_t ipgrp_magic;
