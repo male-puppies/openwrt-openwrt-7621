@@ -1,5 +1,5 @@
 src-git packages https://github.com/male-puppies/openwrt-packages-puppies.git;v3.2-camel-master
-src-git luci https://github.com/male-puppies/openwrt-luci-puppies.git;v3.2-camel;v3.2-camel
+src-git luci https://github.com/male-puppies/openwrt-luci-puppies.git;v3.2-camel-master
 src-git routing https://github.com/male-puppies/openwrt-routing-packages-puppies.git;v3.2-camel
 src-git telephony https://github.com/male-puppies/openwrt-telephony-puppies.git;v3.2-camel
 src-git management https://github.com/male-puppies/openwrt-management-packages-puppies.git;v3.2-camel
