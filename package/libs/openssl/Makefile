@@ -134,6 +134,8 @@ else
   endif
 endif
 
+OPENSSL_OPTIONS+=no-asm
+
 STAMP_CONFIGURED := $(STAMP_CONFIGURED)_$(subst $(space),_,$(OPENSSL_OPTIONS))
 
 define Build/Configure
