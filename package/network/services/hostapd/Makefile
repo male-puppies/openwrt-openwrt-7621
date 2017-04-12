@@ -218,7 +218,7 @@ endef
 define Package/wpa-supplicant-mesh
   $(Package/wpa-supplicant)
   TITLE:=WPA Supplicant (with 802.11s and SAE)
-  DEPENDS:=$(DRV_DEPENDS) @(!TARGET_uml||BROKEN)
+  DEPENDS:=$(DRV_DEPENDS) +libopenssl @(!TARGET_uml||BROKEN)
   CONFLICTS:=wpad wpad-mesh wpad-mesh
   VARIANT:=supplicant-mesh
 endef
@@ -242,7 +242,7 @@ endef
 define Package/wpa-cli
   SECTION:=net
   CATEGORY:=Network
-  DEPENDS:=@PACKAGE_wpa-supplicant||PACKAGE_wpa-supplicant-p2p||PACKAGE_wpad-mini||PACKAGE_wpad||PACKAGE_wpad-mesh
+  DEPENDS:=@PACKAGE_wpa-supplicant||PACKAGE_wpa-supplicant-mesh||PACKAGE_wpa-supplicant-p2p||PACKAGE_wpad-mini||PACKAGE_wpad||PACKAGE_wpad-mesh
   TITLE:=WPA Supplicant command line interface
 endef
 
@@ -414,6 +414,7 @@ define Package/wpa-supplicant/install
 endef
 Package/wpa-supplicant-mini/install = $(Package/wpa-supplicant/install)
 Package/wpa-supplicant-p2p/install = $(Package/wpa-supplicant/install)
+Package/wpa-supplicant-mesh/install = $(Package/wpa-supplicant/install)
 
 ifneq ($(LOCAL_TYPE),hostapd)
   define Package/wpa-cli/install
