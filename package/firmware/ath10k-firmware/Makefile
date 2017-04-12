@@ -37,16 +37,33 @@ $(Package/ath10k-firmware-default)
   TITLE:=ath10k firmware for QCA988x devices
 endef
 
-QCA988X_FIRMWARE_FILE:=firmware-5.bin_10.2.4.97-1
+define Package/ath10k-firmware-qca9887
+$(Package/ath10k-firmware-default)
+  DEFAULT:=PACKAGE_kmod-ath10k
+  TITLE:=ath10k firmware for QCA9887 devices
+endef
+
+QCA988X_FIRMWARE_FILE:=firmware-5.bin_10.2.4-1.0-00025-qca988X
 QCA988X_FIRMWARE_FILE_CT:=firmware-2-ct-full-community-16.bin-lede
 QCA99X0_FIRMWARE_FILE_CT:=firmware-5-ct-full-community-7.bin-lede.001
 
+QCA9887_FIRMWARE_FILE:=firmware-5.bin_10.2.4-1.0-00025-qca9887
+
 define Download/ath10k-firmware-qca988x
-  URL:=https://www.codeaurora.org/cgit/quic/qsdk/oss/firmware/ath10k-firmware/plain/10.2.4/
+  URL:=https://source.codeaurora.org/quic/qsdk/oss/firmware/ath10k-firmware/plain/ath10k/QCA988X/hw2.0/
+  URL_FILE:=firmware-5.bin_10.2.4-1.0-00025
   FILE:=$(QCA988X_FIRMWARE_FILE)
-  MD5SUM:=fcb2fbd42d73a63fbf603505c718cbde
+  MD5SUM:=229befd8b489a132e8cedc9937ba8108
 endef
 $(eval $(call Download,ath10k-firmware-qca988x))
+
+define Download/ath10k-firmware-qca9887
+  URL:=https://source.codeaurora.org/quic/qsdk/oss/firmware/ath10k-firmware/plain/ath10k/QCA9887/hw1.0/
+  URL_FILE:=firmware-5.bin_10.2.4-1.0-00025
+  FILE:=$(QCA9887_FIRMWARE_FILE)
+  MD5SUM:=3b68b368b6bdd319dadcde53d515f64e
+endef
+$(eval $(call Download,ath10k-firmware-qca9887))
 
 define Download/ath10k-firmware-qca988x-ct
   URL:=https://www.candelatech.com/downloads/
@@ -135,6 +152,13 @@ define Package/ath10k-firmware-qca988x/install
 		$(1)/lib/firmware/ath10k/QCA988X/hw2.0/firmware-5.bin
 endef
 
+define Package/ath10k-firmware-qca9887/install
+	$(INSTALL_DIR) $(1)/lib/firmware/ath10k/QCA9887/hw1.0
+	$(INSTALL_DATA) \
+		$(DL_DIR)/$(QCA9887_FIRMWARE_FILE) \
+		$(1)/lib/firmware/ath10k/QCA9887/hw1.0/firmware-5.bin
+endef
+
 define Package/ath10k-firmware-qca988x-ct/install
 	$(INSTALL_DIR) $(1)/lib/firmware/ath10k/QCA988X/hw2.0
 	$(INSTALL_DATA) \
@@ -188,6 +212,7 @@ define Package/ath10k-firmware-qca9984/install
 endef
 
 $(eval $(call BuildPackage,ath10k-firmware-qca988x))
+$(eval $(call BuildPackage,ath10k-firmware-qca9887))
 $(eval $(call BuildPackage,ath10k-firmware-qca99x0))
 $(eval $(call BuildPackage,ath10k-firmware-qca6174))
 $(eval $(call BuildPackage,ath10k-firmware-qca9984))
