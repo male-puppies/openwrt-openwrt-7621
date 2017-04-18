@@ -234,7 +234,8 @@ define KernelPackage/ath9k
   DEPENDS+= @PCI_SUPPORT||TARGET_ar71xx +kmod-ath9k-common
   FILES:= \
 	$(PKG_BUILD_DIR)/drivers/net/wireless/ath/ath9k/ath9k.ko
-  AUTOLOAD:=$(call AutoProbe,ath9k)
+#  AUTOLOAD:=$(call AutoProbe,ath9k)
+  AUTOLOAD:=$(call AutoLoad,54,ath9k)
 endef
 
 define KernelPackage/ath9k/description
