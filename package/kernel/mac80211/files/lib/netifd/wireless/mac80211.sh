@@ -417,7 +417,7 @@ mac80211_prepare_vif() {
 
 	json_get_vars ifname mode ssid wds powersave macaddr
 
-	[ -n "$ifname" ] || ifname="wlan${phy#phy}${if_idx:+-$if_idx}"
+	[ -n "$ifname" ] || ifname="ath${phy#phy}${if_idx:+$if_idx}"
 	if_idx=$((${if_idx:-0} + 1))
 
 	set_default wds 0
