@@ -492,7 +492,8 @@ mac80211_prepare_vif() {
 mac80211_setup_supplicant() {
 	wpa_supplicant_prepare_interface "$ifname" nl80211 || return 1
 	wpa_supplicant_add_network "$ifname"
-	wpa_supplicant_run "$ifname" ${hostapd_ctrl:+-H $hostapd_ctrl}
+	#wpa_supplicant_run "$ifname" ${hostapd_ctrl:+-H $hostapd_ctrl}
+	wpa_supplicant_run "$ifname"
 }
 
 mac80211_setup_adhoc_htmode() {
