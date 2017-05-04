@@ -1,0 +1,15 @@
+diff -Nuapr a/wpa_supplicant/wpa_supplicant.c b/wpa_supplicant/wpa_supplicant.c
+--- a/wpa_supplicant/wpa_supplicant.c	2017-05-04 14:15:08.510223162 +0800
++++ b/wpa_supplicant/wpa_supplicant.c	2017-05-04 15:09:20.754538086 +0800
+@@ -2008,6 +2008,11 @@ void ibss_mesh_setup_freq(struct wpa_sup
+ 			/* Configuration allowed */
+ 			break;
+ 		case 2:
++			/* mesh not switch pri/sec */
++			if (ssid->mode == WPAS_MODE_MESH)
++			{
++				break;
++			}
+ 			/* Switch pri/sec channels */
+ 			freq->freq = hw_get_freq(mode, sec_chan->chan);
+ 			freq->sec_channel_offset = -freq->sec_channel_offset;
