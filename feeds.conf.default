@@ -6,6 +6,6 @@ src-git management https://github.com/male-puppies/openwrt-management-packages-p
 src-git targets https://github.com/male-puppies/openwrt-targets-puppies.git;v1.0-wifi-check
 src-git oldpackages https://github.com/male-puppies/openwrt-oldpackages-puppies.git;v1.0-wifi-check
 src-git puppies https://gitlab.com/male-puppies/openwrt-ac-puppies.git;v1.0-wifi-check
-src-git ptpt52 https://github.com/ptpt52/com.ptpt52.openwrt.git;
+src-git ptpt52 https://github.com/ptpt52/com.ptpt52.openwrt.git
 #src-link custom /usr/src/openwrt/custom-feed
 src-link qca ../qca
