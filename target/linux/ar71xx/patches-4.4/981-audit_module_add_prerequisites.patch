@@ -1,0 +1,43 @@
+diff -uNr a/include/ntrack_nacs.h b/include/ntrack_nacs.h
+--- a/include/ntrack_nacs.h	2017-05-26 11:24:59.536173722 +0800
++++ b/include/ntrack_nacs.h	2017-05-26 11:32:31.446569370 +0800
+@@ -37,4 +37,17 @@
+ 	uint32_t	hits;	/*hit count*/
+ }nacs_msg_t;
+ 
++//add by Jay
++typedef struct {
++        /*flow related*/
++        uint32_t        src_ip, dst_ip;
++        uint16_t        src_port, dst_port;
++        uint32_t         proto_id;          /*app_crc...*/
++        char            host[32];
++        char            macaddr[6];
++        uint8_t        proto;/*tcp/udp...*/
++        unsigned long time_stamp_init;
++        unsigned long time_stamp;
++}audit_msg_t;
++
+ #endif
+diff -uNr a/include/uapi/linux/nos_track.h b/include/uapi/linux/nos_track.h
+--- a/include/uapi/linux/nos_track.h	2017-03-15 20:32:36.000000000 +0800
++++ b/include/uapi/linux/nos_track.h	2017-05-12 18:13:24.000000000 +0800
+@@ -46,6 +46,7 @@
+ typedef struct nos_flow_hdr {
+ 	uint32_t flags;
+ 	uint16_t proto;
++	utimes_t time_stamp_init;
+ 	utimes_t time_stamp;
+ 	uint64_t recv_bytes, xmit_bytes;
+ 	uint64_t recv_pkts, xmit_pkts; /* statistics */
+diff -uNr a/kernel/nos_track.c b/kernel/nos_track.c
+--- a/kernel/nos_track.c	2017-03-15 20:32:36.000000000 +0800
++++ b/kernel/nos_track.c	2017-05-12 18:09:31.000000000 +0800
+@@ -121,6 +121,7 @@
+ 	fi->tuple = *tuple;
+ 
+ 	memset(&fi->hdr, 0, sizeof(fi->hdr));
++	fi->hdr.time_stamp_init = jiffies;
+ 	memset(fi->private, 0, sizeof(fi->private));
+ 
+ 	smp_wmb();
