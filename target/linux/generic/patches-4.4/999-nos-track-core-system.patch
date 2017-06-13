@@ -334,6 +334,7 @@ index 0000000..0854147
 +typedef struct nos_flow_hdr {
 +	uint32_t flags;
 +	uint16_t proto;
++	utimes_t time_stamp_init;
 +	utimes_t time_stamp;
 +	uint64_t recv_bytes, xmit_bytes;
 +	uint64_t recv_pkts, xmit_pkts; /* statistics */
