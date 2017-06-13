@@ -561,6 +561,7 @@ index 0000000..1e45b87
 +	fi->tuple = *tuple;
 +
 +	memset(&fi->hdr, 0, sizeof(fi->hdr));
++	fi->hdr.time_stamp_init = jiffies/HZ;
 +	memset(fi->private, 0, sizeof(fi->private));
 +
 +	smp_wmb();
