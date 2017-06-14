@@ -285,7 +285,7 @@ new file mode 100644
 index 0000000..0854147
 --- /dev/null
 +++ b/include/uapi/linux/nos_track.h
-@@ -0,0 +1,95 @@
+@@ -0,0 +1,96 @@
 +#ifndef _UAPI_NOS_TRACK_H
 +#define _UAPI_NOS_TRACK_H
 +#include <linux/types.h>
@@ -438,7 +438,7 @@ new file mode 100644
 index 0000000..1e45b87
 --- /dev/null
 +++ b/kernel/nos_track.c
-@@ -0,0 +1,612 @@
+@@ -0,0 +1,613 @@
 +#include <linux/nos_track.h>
 +#include <linux/nos_mempool.h>
 +#include <linux/bootmem.h>
