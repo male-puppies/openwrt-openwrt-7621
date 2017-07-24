@@ -1,0 +1,22 @@
+diff -uNr a/drivers/net/ppp/ppp_generic.c b/drivers/net/ppp/ppp_generic.c
+--- a/drivers/net/ppp/ppp_generic.c	2017-07-24 14:04:17.101092795 +0000
++++ b/drivers/net/ppp/ppp_generic.c	2017-07-24 14:04:34.678193082 +0000
+@@ -2390,8 +2390,6 @@
+ 	spin_lock_bh(&pn->all_channels_lock);
+ 	list_del(&pch->list);
+ 	spin_unlock_bh(&pn->all_channels_lock);
+-	put_net(pch->chan_net);
+-	pch->chan_net = NULL;
+ 
+ 	pch->file.dead = 1;
+ 	wake_up_interruptible(&pch->file.rwait);
+@@ -2985,6 +2983,9 @@
+ static void ppp_destroy_channel(struct channel *pch)
+ {
+ 	atomic_dec(&channel_count);
++	
++	put_net(pch->chan_net);
++	pch->chan_net = NULL;
+ 
+ 	if (!pch->file.dead) {
+ 		/* "can't happen" */
