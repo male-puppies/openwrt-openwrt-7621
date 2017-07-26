@@ -1661,6 +1661,9 @@ define Build/Prepare
 
 	echo 'compat-wireless-$(PKG_VERSION)-$(PKG_RELEASE)-$(REVISION)' > $(PKG_BUILD_DIR)/compat_version
 	$(CP) ./files/regdb.txt $(PKG_BUILD_DIR)/net/wireless/db.txt
+ifeq ($(CONFIG_PACKAGE_ATH_DFS),)
+	$(CP) ./files/regdb_no_dfs.txt $(PKG_BUILD_DIR)/net/wireless/db.txt
+endif
 endef
 
 ifneq ($(CONFIG_PACKAGE_kmod-cfg80211)$(CONFIG_PACKAGE_kmod-lib80211),)
