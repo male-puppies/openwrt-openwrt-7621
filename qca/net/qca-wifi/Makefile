@@ -3,7 +3,7 @@ include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=qca-wifi
-PKG_REV:=6bab6a82770968409a0e7d16732fc52312c1b929
+PKG_REV:=d51b16ebdbc99a0ad049599517418f16c7400ce9
 PKG_VERSION:=0.0.0
 
 # include $(INCLUDE_DIR)/local-development.mk
