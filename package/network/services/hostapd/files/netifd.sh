@@ -595,6 +595,26 @@ wpa_supplicant_add_network() {
 			freq="$(get_freq "$phy" "$channel")"
 			append network_data "frequency=$freq" "$N$T"
 		}
+		
+		#set ht and vht
+		case "$htmode" in
+			VHT20|HT20)
+				disable_ht40=1
+				disable_vht=1
+			;;
+			HT40*)
+				disable_vht=1
+			;;
+			VHT40|VHT80|VHT160) 
+			;;
+			*) ;;
+		esac
+		[ -n "$disable_ht40" ] && {
+			append network_data "disable_ht40=$disable_ht40" "$N$T"
+		}
+		[ -n "$disable_vht" ] && {
+			append network_data "disable_vht=$disable_vht" "$N$T"
+		}
 
 		#mesh config
 		cat >> "$_config" <<EOF

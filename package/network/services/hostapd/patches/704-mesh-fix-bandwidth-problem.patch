@@ -1,0 +1,111 @@
+diff -Nuapr a/src/ap/hw_features.c b/src/ap/hw_features.c
+--- a/src/ap/hw_features.c	2017-08-02 20:43:16.510015754 +0800
++++ b/src/ap/hw_features.c	2017-08-02 20:44:21.214510526 +0800
+@@ -329,6 +329,8 @@ static void ieee80211n_check_scan(struct
+ 	res = ieee80211n_allowed_ht40_channel_pair(iface);
+ 	if (!res) {
+ 		iface->conf->secondary_channel = 0;
++		iface->conf->vht_oper_centr_freq_seg0_idx = 0;
++		iface->conf->vht_oper_centr_freq_seg1_idx = 0;
+ 		res = 1;
+ 		wpa_printf(MSG_INFO, "Fallback to 20 MHz");
+ 	}
+diff -Nuapr a/src/drivers/driver.h b/src/drivers/driver.h
+--- a/src/drivers/driver.h	2017-08-02 20:43:17.222065217 +0800
++++ b/src/drivers/driver.h	2017-08-02 21:04:26.338224050 +0800
+@@ -1124,7 +1124,7 @@ struct wpa_driver_ap_params {
+ };
+ 
+ struct wpa_driver_mesh_bss_params {
+-#define WPA_DRIVER_MESH_CONF_FLAG_AUTO_PLINKS	0x00000001
++#define WPA_DRIVER_MESH_CONF_FLAG_AUTO_PLINKS 0x00000001
+ 	/*
+ 	 * TODO: Other mesh configuration parameters would go here.
+ 	 * See NL80211_MESHCONF_* for all the mesh config parameters.
+diff -Nuapr a/wpa_supplicant/ap.c b/wpa_supplicant/ap.c
+--- a/wpa_supplicant/ap.c	2017-08-02 20:43:23.734517611 +0800
++++ b/wpa_supplicant/ap.c	2017-08-02 20:44:30.643165500 +0800
+@@ -168,6 +168,7 @@ int wpa_supplicant_conf_ap_ht(struct wpa
+ 
+ 			if (mode->vht_capab && ssid->vht) {
+ 				conf->ieee80211ac = 1;
++				conf->vht_capab |= mode->vht_capab;
+ 				wpas_conf_ap_vht(wpa_s, conf, mode);
+ 			}
+ 		}
+diff -Nuapr a/wpa_supplicant/wpa_supplicant.c b/wpa_supplicant/wpa_supplicant.c
+--- a/wpa_supplicant/wpa_supplicant.c	2017-08-02 20:43:23.434496772 +0800
++++ b/wpa_supplicant/wpa_supplicant.c	2017-08-02 20:52:13.107291221 +0800
+@@ -1927,6 +1927,13 @@ void ibss_mesh_setup_freq(struct wpa_sup
+ 	if (!mode)
+ 		return;
+ 
++#ifdef CONFIG_HT_OVERRIDES
++	if (ssid->disable_ht) {
++		freq->ht_enabled = 0;
++		return;
++	}
++#endif /* CONFIG_HT_OVERRIDES */
++
+ 	freq->ht_enabled = ht_supported(mode);
+ 	if (!freq->ht_enabled)
+ 		return;
+@@ -1948,6 +1955,11 @@ void ibss_mesh_setup_freq(struct wpa_sup
+ 	if (pri_chan->flag & (HOSTAPD_CHAN_DISABLED | HOSTAPD_CHAN_NO_IR))
+ 		return;
+ 
++#ifdef CONFIG_HT_OVERRIDES
++	if (ssid->disable_ht40)
++		return;
++#endif /* CONFIG_HT_OVERRIDES */
++
+ 	/* Check/setup HT40+/HT40- */
+ 	for (j = 0; j < ARRAY_SIZE(ht40plus); j++) {
+ 		if (ht40plus[j] == channel) {
+@@ -2040,6 +2052,13 @@ void ibss_mesh_setup_freq(struct wpa_sup
+ 
+ 	vht_freq = *freq;
+ 
++#ifdef CONFIG_VHT_OVERRIDES
++	if (ssid->disable_vht) {
++		freq->vht_enabled = 0;
++		return;
++	}
++#endif /* CONFIG_VHT_OVERRIDES */
++
+ 	vht_freq.vht_enabled = vht_supported(mode);
+ 	if (!vht_freq.vht_enabled)
+ 		return;
+@@ -3874,8 +3893,8 @@ void wpa_supplicant_apply_vht_overrides(
+ 	if (!vhtcaps || !vhtcaps_mask)
+ 		return;
+ 
+-	vhtcaps->vht_capabilities_info = ssid->vht_capa;
+-	vhtcaps_mask->vht_capabilities_info = ssid->vht_capa_mask;
++	vhtcaps->vht_capabilities_info = host_to_le32(ssid->vht_capa);
++	vhtcaps_mask->vht_capabilities_info = host_to_le32(ssid->vht_capa_mask);
+ 
+ #ifdef CONFIG_HT_OVERRIDES
+ 	/* if max ampdu is <= 3, we have to make the HT cap the same */
+@@ -3897,15 +3916,17 @@ void wpa_supplicant_apply_vht_overrides(
+ #define OVERRIDE_MCS(i)							\
+ 	if (ssid->vht_tx_mcs_nss_ ##i >= 0) {				\
+ 		vhtcaps_mask->vht_supported_mcs_set.tx_map |=		\
+-			3 << 2 * (i - 1);				\
++			host_to_le16(3 << 2 * (i - 1));			\
+ 		vhtcaps->vht_supported_mcs_set.tx_map |=		\
+-			ssid->vht_tx_mcs_nss_ ##i << 2 * (i - 1);	\
++			host_to_le16(ssid->vht_tx_mcs_nss_ ##i <<	\
++				     2 * (i - 1));			\
+ 	}								\
+ 	if (ssid->vht_rx_mcs_nss_ ##i >= 0) {				\
+ 		vhtcaps_mask->vht_supported_mcs_set.rx_map |=		\
+-			3 << 2 * (i - 1);				\
++			host_to_le16(3 << 2 * (i - 1));			\
+ 		vhtcaps->vht_supported_mcs_set.rx_map |=		\
+-			ssid->vht_rx_mcs_nss_ ##i << 2 * (i - 1);	\
++			host_to_le16(ssid->vht_rx_mcs_nss_ ##i <<	\
++				     2 * (i - 1));			\
+ 	}
+ 
+ 	OVERRIDE_MCS(1);
