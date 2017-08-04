@@ -602,10 +602,10 @@ wpa_supplicant_add_network() {
 				disable_ht40=1
 				disable_vht=1
 			;;
-			HT40*)
+			*HT40*)
 				disable_vht=1
 			;;
-			VHT40|VHT80|VHT160) 
+			VHT80|VHT160) 
 			;;
 			*) ;;
 		esac
