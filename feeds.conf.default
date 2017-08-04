@@ -1,4 +1,4 @@
-src-git packages https://github.com/male-puppies/openwrt-packages-puppie.git;v3.3-fap
+src-git packages https://github.com/male-puppies/openwrt-packages-puppies.git;v3.3-fap
 src-git luci https://github.com/male-puppies/openwrt-luci-puppies.git;v3.3-fap
 src-git routing https://github.com/male-puppies/openwrt-routing-packages-puppies.git;v3.3-fap
 src-git telephony https://github.com/male-puppies/openwrt-telephony-puppies.git;v3.3-fap
