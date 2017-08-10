@@ -20,6 +20,7 @@ define Host/Compile
 	$(call cc,addpattern)
 	$(call cc,asustrx)
 	$(call cc,trx)
+	$(call cc,cvimg)
 	$(call cc,motorola-bin)
 	$(call cc,dgfirmware)
 	$(call cc,mksenaofw md5)
