@@ -497,7 +497,7 @@ diff -uNr origin/kernel/nos_track.c latest/kernel/nos_track.c
 +
 +	user_id = ut - nos_user_tracks;
 +	ui = nos_user_info_base + user_id;
-+	if (time_after64(jiffies_64, ui->hdr.time_stamp + (uint64_t)nos_auth_no_flow_timeout * HZ)) {
++	if (time_after(jiffies, ui->hdr.time_stamp + nos_auth_no_flow_timeout * HZ)) {
 +		//timeout
 +		nos_user_track_put(ut);
 +	} else {
