@@ -436,10 +436,10 @@ index 53abf00..72eb918 100644
  ifdef CONFIG_FUNCTION_TRACER
 diff --git a/kernel/nos_track.c b/kernel/nos_track.c
 new file mode 100644
-index 0000000..1e45b874
+index 0000000..e64a1ef
 --- /dev/null
 +++ b/kernel/nos_track.c
-@@ -0,0 +1,612 @@
+@@ -0,0 +1,621 @@
 +#include <linux/nos_track.h>
 +#include <linux/nos_mempool.h>
 +#include <linux/bootmem.h>
@@ -515,7 +515,16 @@ index 0000000..1e45b874
 +
 +	user_id = ut - nos_user_tracks;
 +	ui = nos_user_info_base + user_id;
-+	if (time_after64(jiffies_64, ui->hdr.time_stamp + (uint64_t)nos_auth_no_flow_timeout * HZ)) {
++	//Fix me:span shouldn't be greater than ULONG_MAX
++	unsigned long cur_span = 0, span = nos_auth_no_flow_timeout * HZ;
++	if (unlikely(jiffies < ui->hdr.time_stamp)) {
++		cur_span = ULONG_MAX - ui->hdr.time_stamp + jiffies;
++	}
++	else {
++		cur_span = jiffies - ui->hdr.time_stamp;
++	}
++
++	if (cur_span > span) {
 +		//timeout
 +		nos_user_track_put(ut);
 +	} else {
