@@ -1,7 +1,211 @@
 diff -uNr a/drivers/net/ppp/ppp_generic.c b/drivers/net/ppp/ppp_generic.c
---- a/drivers/net/ppp/ppp_generic.c	2017-07-24 14:04:17.101092795 +0000
-+++ b/drivers/net/ppp/ppp_generic.c	2017-07-24 14:04:34.678193082 +0000
-@@ -2390,8 +2390,6 @@
+--- a/drivers/net/ppp/ppp_generic.c	2017-08-18 07:12:57.869042901 +0000
++++ b/drivers/net/ppp/ppp_generic.c	2017-08-18 06:38:13.250509975 +0000
+@@ -118,6 +118,7 @@
+ 	int		n_channels;	/* how many channels are attached 54 */
+ 	spinlock_t	rlock;		/* lock for receive side 58 */
+ 	spinlock_t	wlock;		/* lock for transmit side 5c */
++	int		*xmit_recursion __percpu; /* xmit recursion detect */
+ 	int		mru;		/* max receive unit 60 */
+ 	unsigned int	flags;		/* control bits 64 */
+ 	unsigned int	xstate;		/* transmit state bits 68 */
+@@ -443,9 +444,14 @@
+ 			 * network traffic (demand mode).
+ 			 */
+ 			struct ppp *ppp = PF_TO_PPP(pf);
++
++			ppp_recv_lock(ppp);
+ 			if (ppp->n_channels == 0 &&
+-			    (ppp->flags & SC_LOOP_TRAFFIC) == 0)
++			    (ppp->flags & SC_LOOP_TRAFFIC) == 0) {
++				ppp_recv_unlock(ppp);
+ 				break;
++			}
++			ppp_recv_unlock(ppp);
+ 		}
+ 		ret = -EAGAIN;
+ 		if (file->f_flags & O_NONBLOCK)
+@@ -532,9 +538,12 @@
+ 	else if (pf->kind == INTERFACE) {
+ 		/* see comment in ppp_read */
+ 		struct ppp *ppp = PF_TO_PPP(pf);
++
++		ppp_recv_lock(ppp);
+ 		if (ppp->n_channels == 0 &&
+ 		    (ppp->flags & SC_LOOP_TRAFFIC) == 0)
+ 			mask |= POLLIN | POLLRDNORM;
++		ppp_recv_unlock(ppp);
+ 	}
+ 
+ 	return mask;
+@@ -1144,6 +1153,7 @@
+ static void ppp_setup(struct net_device *dev)
+ {
+ 	dev->netdev_ops = &ppp_netdev_ops;
++	dev->features |= NETIF_F_LLTX;
+ 	dev->hard_header_len = PPP_HDRLEN;
+ 	dev->mtu = PPP_MRU;
+ 	dev->addr_len = 0;
+@@ -1157,12 +1167,8 @@
+  * Transmit-side routines.
+  */
+ 
+-/*
+- * Called to do any work queued up on the transmit side
+- * that can now be done.
+- */
+-static void
+-ppp_xmit_process(struct ppp *ppp)
++/* Called to do any work queued up on the transmit side that can now be done */
++static void __ppp_xmit_process(struct ppp *ppp)
+ {
+ 	struct sk_buff *skb;
+ 
+@@ -1182,6 +1188,28 @@
+ 	ppp_xmit_unlock(ppp);
+ }
+ 
++static void ppp_xmit_process(struct ppp *ppp)
++{
++	local_bh_disable();
++
++	if (unlikely(*this_cpu_ptr(ppp->xmit_recursion)))
++		goto err;
++
++	(*this_cpu_ptr(ppp->xmit_recursion))++;
++	__ppp_xmit_process(ppp);
++	(*this_cpu_ptr(ppp->xmit_recursion))--;
++
++	local_bh_enable();
++
++	return;
++
++err:
++	local_bh_enable();
++
++	if (net_ratelimit())
++		netdev_err(ppp->dev, "recursion detected\n");
++}
++
+ static inline struct sk_buff *
+ pad_compress_skb(struct ppp *ppp, struct sk_buff *skb)
+ {
+@@ -1378,7 +1406,7 @@
+ 		list = list->next;
+ 		pch = list_entry(list, struct channel, clist);
+ 
+-		spin_lock_bh(&pch->downl);
++		spin_lock(&pch->downl);
+ 		if (pch->chan) {
+ 			if (pch->chan->ops->start_xmit(pch->chan, skb))
+ 				ppp->xmit_pending = NULL;
+@@ -1387,7 +1415,7 @@
+ 			kfree_skb(skb);
+ 			ppp->xmit_pending = NULL;
+ 		}
+-		spin_unlock_bh(&pch->downl);
++		spin_unlock(&pch->downl);
+ 		return;
+ 	}
+ 
+@@ -1517,7 +1545,7 @@
+ 		}
+ 
+ 		/* check the channel's mtu and whether it is still attached. */
+-		spin_lock_bh(&pch->downl);
++		spin_lock(&pch->downl);
+ 		if (pch->chan == NULL) {
+ 			/* can't use this channel, it's being deregistered */
+ 			if (pch->speed == 0)
+@@ -1525,7 +1553,7 @@
+ 			else
+ 				totspeed -= pch->speed;
+ 
+-			spin_unlock_bh(&pch->downl);
++			spin_unlock(&pch->downl);
+ 			pch->avail = 0;
+ 			totlen = len;
+ 			totfree--;
+@@ -1576,7 +1604,7 @@
+ 		 */
+ 		if (flen <= 0) {
+ 			pch->avail = 2;
+-			spin_unlock_bh(&pch->downl);
++			spin_unlock(&pch->downl);
+ 			continue;
+ 		}
+ 
+@@ -1621,14 +1649,14 @@
+ 		len -= flen;
+ 		++ppp->nxseq;
+ 		bits = 0;
+-		spin_unlock_bh(&pch->downl);
++		spin_unlock(&pch->downl);
+ 	}
+ 	ppp->nxchan = i;
+ 
+ 	return 1;
+ 
+  noskb:
+-	spin_unlock_bh(&pch->downl);
++	spin_unlock(&pch->downl);
+ 	if (ppp->debug & 1)
+ 		netdev_err(ppp->dev, "PPP: no memory (fragment)\n");
+ 	++ppp->dev->stats.tx_errors;
+@@ -1637,16 +1665,13 @@
+ }
+ #endif /* CONFIG_PPP_MULTILINK */
+ 
+-/*
+- * Try to send data out on a channel.
+- */
+-static void
+-ppp_channel_push(struct channel *pch)
++/* Try to send data out on a channel */
++static void __ppp_channel_push(struct channel *pch)
+ {
+ 	struct sk_buff *skb;
+ 	struct ppp *ppp;
+ 
+-	spin_lock_bh(&pch->downl);
++	spin_lock(&pch->downl);
+ 	if (pch->chan) {
+ 		while (!skb_queue_empty(&pch->file.xq)) {
+ 			skb = skb_dequeue(&pch->file.xq);
+@@ -1660,17 +1685,28 @@
+ 		/* channel got deregistered */
+ 		skb_queue_purge(&pch->file.xq);
+ 	}
+-	spin_unlock_bh(&pch->downl);
++	spin_unlock(&pch->downl);
+ 	/* see if there is anything from the attached unit to be sent */
+ 	if (skb_queue_empty(&pch->file.xq)) {
+-		read_lock_bh(&pch->upl);
+ 		ppp = pch->ppp;
+ 		if (ppp)
+-			ppp_xmit_process(ppp);
+-		read_unlock_bh(&pch->upl);
++			__ppp_xmit_process(ppp);
+ 	}
+ }
+ 
++static void ppp_channel_push(struct channel *pch)
++{
++	read_lock_bh(&pch->upl);
++	if (pch->ppp) {
++		(*this_cpu_ptr(pch->ppp->xmit_recursion))++;
++		__ppp_channel_push(pch);
++		(*this_cpu_ptr(pch->ppp->xmit_recursion))--;
++	} else {
++		__ppp_channel_push(pch);
++	}
++	read_unlock_bh(&pch->upl);
++}
++
+ /*
+  * Receive-side routines.
+  */
+@@ -2390,8 +2426,6 @@
  	spin_lock_bh(&pn->all_channels_lock);
  	list_del(&pch->list);
  	spin_unlock_bh(&pn->all_channels_lock);
@@ -10,13 +214,83 @@ diff -uNr a/drivers/net/ppp/ppp_generic.c b/drivers/net/ppp/ppp_generic.c
  
  	pch->file.dead = 1;
  	wake_up_interruptible(&pch->file.rwait);
-@@ -2985,6 +2983,9 @@
- static void ppp_destroy_channel(struct channel *pch)
+@@ -2724,11 +2758,12 @@
+ 	struct net_device *dev = NULL;
+ 	int ret = -ENOMEM;
+ 	int i;
++	int cpu;
+ 
+ 	dev = alloc_netdev(sizeof(struct ppp), "", NET_NAME_UNKNOWN,
+ 			   ppp_setup);
+ 	if (!dev)
+-		goto out1;
++		goto out0;
+ 
+ 	pn = ppp_pernet(net);
+ 
+@@ -2743,6 +2778,15 @@
+ 	INIT_LIST_HEAD(&ppp->channels);
+ 	spin_lock_init(&ppp->rlock);
+ 	spin_lock_init(&ppp->wlock);
++
++	ppp->xmit_recursion = alloc_percpu(int);
++	if (!ppp->xmit_recursion) {
++		ret = -ENOMEM;
++		goto out1;
++	}
++	for_each_possible_cpu(cpu)
++		(*per_cpu_ptr(ppp->xmit_recursion, cpu)) = 0;
++
+ #ifdef CONFIG_PPP_MULTILINK
+ 	ppp->minseq = -1;
+ 	skb_queue_head_init(&ppp->mrq);
+@@ -2809,8 +2853,10 @@
+ out2:
+ 	mutex_unlock(&pn->all_ppp_mutex);
+ 	rtnl_unlock();
+-	free_netdev(dev);
++	free_percpu(ppp->xmit_recursion);
+ out1:
++	free_netdev(dev);
++out0:
+ 	*retp = ret;
+ 	return NULL;
+ }
+@@ -2868,7 +2914,7 @@
+ #endif /* CONFIG_PPP_FILTER */
+ 
+ 	kfree_skb(ppp->xmit_pending);
+-
++	free_percpu(ppp->xmit_recursion);
+ 	free_netdev(ppp->dev);
+ }
+ 
+@@ -2986,6 +3032,9 @@
  {
  	atomic_dec(&channel_count);
-+	
+ 
 +	put_net(pch->chan_net);
 +	pch->chan_net = NULL;
- 
++
  	if (!pch->file.dead) {
  		/* "can't happen" */
+ 		pr_err("ppp: destroying undead channel %p !\n", pch);
+diff -uNr a/drivers/net/ppp/pptp.c b/drivers/net/ppp/pptp.c
+--- a/drivers/net/ppp/pptp.c	2017-08-18 07:12:57.869042901 +0000
++++ b/drivers/net/ppp/pptp.c	2017-08-18 06:38:13.286509238 +0000
+@@ -165,7 +165,6 @@
+ 	clear_bit(sock->proto.pptp.src_addr.call_id, callid_bitmap);
+ 	RCU_INIT_POINTER(callid_sock[sock->proto.pptp.src_addr.call_id], NULL);
+ 	spin_unlock(&chan_lock);
+-	synchronize_rcu();
+ }
+ 
+ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
+@@ -558,6 +557,7 @@
+ 	po = pppox_sk(sk);
+ 	opt = &po->proto.pptp;
+ 	del_chan(po);
++	synchronize_rcu();
+ 
+ 	pppox_unbind_sock(sk);
+ 	sk->sk_state = PPPOX_DEAD;
