@@ -24,6 +24,6 @@ HOST_CONFIGURE_CMD := MAKEFLAGS="$(HOST_JOBS)" $(BASH) ./configure
 HOST_CONFIGURE_VARS :=
 
 HOST_CONFIGURE_ARGS := \
-	--prefix=$(STAGING_DIR_HOST)
+	--prefix=$(STAGING_DIR_HOST) --system-curl
 
 $(eval $(call HostBuild))
