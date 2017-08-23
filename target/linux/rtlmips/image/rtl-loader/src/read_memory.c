@@ -15,7 +15,6 @@
 
 
 #include <linux/types.h>
-#include "hfload.h"
 
 #ifndef EMBEDDED
 #include <unistd.h>
@@ -28,6 +27,9 @@ char *source_memory;
 #ifdef EMBEDDED
 #ifndef COMPRESSED_KERNEL
 extern char source_memory_start;
+#else
+#define printf prom_printf
+extern int file_offset;
 #endif
 #endif
 

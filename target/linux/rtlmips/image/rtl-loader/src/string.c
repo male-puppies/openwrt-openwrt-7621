@@ -348,6 +348,7 @@ void * memscan(void * addr, int c, size_t size)
 }
 #endif
 
+#if 0
 #ifndef __HAVE_ARCH_STRSTR
 char * strstr(const char * s1,const char * s2)
 {
@@ -365,6 +366,7 @@ char * strstr(const char * s1,const char * s2)
 	}
 	return NULL;
 }
+#endif
 #endif
 
 #ifndef __HAVE_ARCH_MEMCHR

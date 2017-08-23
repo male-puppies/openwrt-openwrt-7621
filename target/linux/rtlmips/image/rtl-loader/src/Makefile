@@ -27,7 +27,7 @@ LDSCRIPT = ld.script
 COPTIONS = -DROM_MEMORY -DCOMPRESSED_KERNEL -D__KERNEL__
 LDFLAGS = -static -nostdlib
 
-CFLAGS = -Os -g -fno-pic -mno-abicalls
+CFLAGS = -Os -g -fno-pic -mno-abicalls -DUNCOMPRESS_OUT=0x80000000
 CFLAGS += -DEMBEDDED -I$(KERNEL_ROOT)/include/linux -I$(KERNEL_ROOT)/include -I$(KERNEL_ROOT)/lib $(COPTIONS) -G 0
 CFLAGS += -I$(KERNEL_ROOT)/arch/mips/include -I$(KERNEL_ROOT)/arch/mips/include/asm/mach-generic 
 ASFLAGS = -g -fno-pic -mno-abicalls -DEMBEDDED -I$(KERNEL_ROOT)/include -I$(KERNEL_ROOT)/arch/mips/include
