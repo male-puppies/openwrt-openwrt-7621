@@ -1,0 +1,15 @@
+diff -uNr a/drivers/net/slip/slhc.c b/drivers/net/slip/slhc.c
+--- a/drivers/net/slip/slhc.c	2017-08-31 07:10:38.709142281 +0000
++++ b/drivers/net/slip/slhc.c	2017-08-31 07:11:43.700915722 +0000
+@@ -524,6 +524,11 @@
+ 	thp = &cs->cs_tcp;
+ 	ip = &cs->cs_ip;
+ 
++	if (ip->ihl < 5) {
++		printk("slhc_uncompress:%d ip->ihl=%d\n", __LINE__, ip->ihl);
++		goto bad;
++	}
++
+ 	thp->check = *(__sum16 *)cp;
+ 	cp += 2;
+ 
