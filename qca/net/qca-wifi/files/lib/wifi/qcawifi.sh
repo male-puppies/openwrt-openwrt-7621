@@ -438,6 +438,16 @@ enable_qcawifi() {
 	config_get mcast_echo "$device" mcast_echo
 	[ -n "$mcast_echo" ] && iwpriv "$phy" mcast_echo "${mcast_echo}"
 
+	config_get sta_rate_limit "$device" sta_rate_limit
+	[ -n "$sta_rate_limit" ] && iwpriv "$phy" sta_rate_limit "${sta_rate_limit}"
+
+	config_get min_bcast_rate "$device" min_bcast_rate
+	[ -n "$min_bcast_rate" ] && iwpriv "$phy" min_bcast_rate "${min_bcast_rate}"
+
+	config_get drop_probe "$device" drop_probe
+	[ -n "$drop_probe" ] && iwpriv "$phy" drop_probe "${drop_probe}"
+
+
 	for vif in $vifs; do
 		local vif_txpower= nosbeacon= wlanaddr=""
 		config_get ifname "$vif" ifname
@@ -524,6 +534,9 @@ enable_qcawifi() {
 
 		config_get bintval "$vif" bintval
 		[ -n "$bintval" ] && iwpriv "$ifname" bintval "$bintval"
+
+		config_get shpreamble "$vif" shpreamble
+		[ -n "$shpreamble" ] && iwpriv "$ifname" shpreamble "$shpreamble"
 
 		config_get_bool countryie "$vif" countryie
 		[ -n "$countryie" ] && iwpriv "$ifname" countryie "$countryie"
@@ -960,6 +973,9 @@ enable_qcawifi() {
 
 		config_get enh_ind "$vif" enh_ind
 		[ -n "$enh_ind" ] && iwpriv "$ifname" enh-ind "$enh_ind"
+
+		config_get fairtime "$vif" fairtime
+		[ -n "$fairtime" ] && iwpriv "$ifname" fairtime "$fairtime"
 	done
 
 	for vif in $vifs; do
