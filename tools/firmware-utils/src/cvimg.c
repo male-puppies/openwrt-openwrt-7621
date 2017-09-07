@@ -201,7 +201,7 @@ int main(int argc, char **argv) {
   }
 
   // Write image to output file
-  fh = open(outFile, O_RDWR | O_CREAT | O_TRUNC);
+  fh = open(outFile, O_RDWR | O_CREAT | O_TRUNC, 0600);
   if (fh == -1) {
     printf("Create output file error! [%s]\n", outFile);
     free(pHeader);
