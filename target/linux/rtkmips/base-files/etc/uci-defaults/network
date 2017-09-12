@@ -1,4 +1,8 @@
 #!/bin/sh
+
+#if network is exist, miss this operation
+[ -f "/etc/config/network" ] && exit 1
+
 if   [ -x /sbin/swconfig ]; then
 	uci batch <<EOF
 set network.eth0=switch
