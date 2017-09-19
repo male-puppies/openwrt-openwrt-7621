@@ -11,7 +11,7 @@ timeout)
 	set_state failsafe
 ;;
 released)
-	if [ "$SEEN" -lt 1 ]
+	if [ "$SEEN" -lt 2 ]
 	then
 		echo "REBOOT" > /dev/console
 		sync
