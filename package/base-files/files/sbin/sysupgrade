@@ -145,7 +145,7 @@ do_save_conffiles() {
 		ask_bool 0 "Abort" && exit
 		return 0
 	}
-	run_hooks "$CONFFILES" $sysupgrade_init_conffiles
+	run_hooks "$CONFFILES" $sysupgrade_init_conffiles 2> /dev/null
 	ask_bool 0 "Edit config file list" && vi "$CONFFILES"
 
 	v "Saving config files..."
