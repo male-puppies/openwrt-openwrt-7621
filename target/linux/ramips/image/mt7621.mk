@@ -94,6 +94,13 @@ define Device/puppies
 endef
 TARGET_DEVICES += puppies
 
+define Device/nxc200p
+  DTS := NXC200P
+  IMAGE_SIZE := $(ralink_default_fw_size_16M)
+  DEVICE_TITLE := NXC200P Device
+endef
+TARGET_DEVICES += nxc200p
+
 define Device/pbr-m1
   DTS := PBR-M1
   IMAGE_SIZE := $(ralink_default_fw_size_16M)
@@ -178,8 +185,11 @@ define Device/sk-wb8
 endef
 TARGET_DEVICES += sk-wb8
 
-# XXX: build puppies only
+# XXX: build puppies or nxc200p
 TARGET_DEVICES = puppies
+ifeq ($(CONFIG_TARGET_AC_mt7621_nxc200p),y)
+TARGET_DEVICES = nxc200p
+endif
 
 # FIXME: is this still needed?
 define Image/Prepare
