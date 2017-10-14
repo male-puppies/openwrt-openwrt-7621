@@ -13,9 +13,9 @@
 	gpio-leds {
 		compatible = "gpio-leds";
 
-		power {
+		 sys {
 			label = "nxc200p:green:sys";
-			gpios = <&gpio0 13 1>;
+			gpios = <&gpio0 15 1>;
 		};
 
 		 led14 {
@@ -23,9 +23,9 @@
                         gpios = <&gpio0 14 1>;
                 };
 
-		led15 {
-                        label = "led15";
-                        gpios = <&gpio0 15 1>;
+		led13 {
+                        label = "led13";
+                        gpios = <&gpio0 13 1>;
                 };
 	};
 
