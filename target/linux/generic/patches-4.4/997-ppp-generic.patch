@@ -1,11 +1,11 @@
 diff -uNr a/drivers/net/ppp/ppp_generic.c b/drivers/net/ppp/ppp_generic.c
---- a/drivers/net/ppp/ppp_generic.c	2017-08-18 07:12:57.869042901 +0000
-+++ b/drivers/net/ppp/ppp_generic.c	2017-08-18 06:38:13.250509975 +0000
+--- a/drivers/net/ppp/ppp_generic.c	2017-10-14 11:25:38.266405162 +0000
++++ b/drivers/net/ppp/ppp_generic.c	2017-10-14 11:35:38.355922941 +0000
 @@ -118,6 +118,7 @@
  	int		n_channels;	/* how many channels are attached 54 */
  	spinlock_t	rlock;		/* lock for receive side 58 */
  	spinlock_t	wlock;		/* lock for transmit side 5c */
-+	int		*xmit_recursion __percpu; /* xmit recursion detect */
++	int __percpu    *xmit_recursion; /* xmit recursion detect */
  	int		mru;		/* max receive unit 60 */
  	unsigned int	flags;		/* control bits 64 */
  	unsigned int	xstate;		/* transmit state bits 68 */
@@ -276,8 +276,8 @@ diff -uNr a/drivers/net/ppp/ppp_generic.c b/drivers/net/ppp/ppp_generic.c
  		/* "can't happen" */
  		pr_err("ppp: destroying undead channel %p !\n", pch);
 diff -uNr a/drivers/net/ppp/pptp.c b/drivers/net/ppp/pptp.c
---- a/drivers/net/ppp/pptp.c	2017-08-18 07:12:57.869042901 +0000
-+++ b/drivers/net/ppp/pptp.c	2017-08-18 06:38:13.286509238 +0000
+--- a/drivers/net/ppp/pptp.c	2017-10-14 11:25:33.134332256 +0000
++++ b/drivers/net/ppp/pptp.c	2017-10-14 11:14:51.666934155 +0000
 @@ -165,7 +165,6 @@
  	clear_bit(sock->proto.pptp.src_addr.call_id, callid_bitmap);
  	RCU_INIT_POINTER(callid_sock[sock->proto.pptp.src_addr.call_id], NULL);
