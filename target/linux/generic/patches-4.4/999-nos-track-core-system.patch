@@ -21,10 +21,10 @@ index 6ad687d..8e5fa5b 100644
  #endif /* CONFIG_STRICT_DEVMEM */
 diff --git a/include/linux/nos_mempool.h b/include/linux/nos_mempool.h
 new file mode 100644
-index 0000000..a787e0e
+index 0000000..c349810
 --- /dev/null
 +++ b/include/linux/nos_mempool.h
-@@ -0,0 +1,62 @@
+@@ -0,0 +1,64 @@
 +#ifndef _NOS_MEMPOOL_H
 +#define _NOS_MEMPOOL_H
 +
@@ -67,8 +67,10 @@ index 0000000..a787e0e
 +		pool->nr_used++;
 +		pool->nr_free--;
 +	} else {
-+		pr_warn_ratelimited("nos_mempool oom: %s, nr_used: %d, nr_free: %d\n",
-+							pool->name, pool->nr_used, pool->nr_free);
++		if (pool->nr_used != 0) {
++			pr_warn_ratelimited("nos_mempool oom: %s, nr_used: %d, nr_free: %d\n",
++					pool->name, pool->nr_used, pool->nr_free);
++		}
 +	}
 +	spin_unlock_bh(&pool->lock);
 +	return data;
@@ -107,10 +109,10 @@ index 0000000..5425992
 +#endif /* _NOS_TRACK_H */
 diff --git a/include/linux/nos_track_priv.h b/include/linux/nos_track_priv.h
 new file mode 100644
-index 0000000..7d81ca5
+index 0000000..a4cea06
 --- /dev/null
 +++ b/include/linux/nos_track_priv.h
-@@ -0,0 +1,93 @@
+@@ -0,0 +1,94 @@
 +#ifndef _NOS_TRACK_PRIV_H__
 +#define _NOS_TRACK_PRIV_H__
 +
@@ -139,6 +141,7 @@ index 0000000..7d81ca5
 +
 +struct tbq_flow_track {
 +	struct list_head list;
++	uint16_t tbq_level;
 +	uint16_t dummy;
 +	uint16_t app_id;
 +	uint16_t uname_match;	//mo
@@ -281,7 +284,7 @@ index ebd10e6..0b8ae96 100644
 +header-y += nos_track.h
 diff --git a/include/uapi/linux/nos_track.h b/include/uapi/linux/nos_track.h
 new file mode 100644
-index 0000000..d4a8404
+index 0000000..0854147
 --- /dev/null
 +++ b/include/uapi/linux/nos_track.h
 @@ -0,0 +1,95 @@
@@ -299,10 +302,10 @@ index 0000000..d4a8404
 + #define NTRACK_BOOTM_SIZE (32 * (0x1<<20))
 +#endif
 +
-+#define NTRACK_PKT_PRIV_SIZE (128)
++#define NTRACK_PKT_PRIV_SIZE (256)
 +
-+#define NOS_USER_INFO_SIZE			(128)
-+#define NOS_FLOW_INFO_SIZE			(128)
++#define NOS_USER_INFO_SIZE			(256)
++#define NOS_FLOW_INFO_SIZE			(256)
 +
 +#define NOS_USER_FLAGS_TYPE_USER 	(1<<0)
 +#define NOS_USER_TRACK_INTERVAL		(60 * HZ)
@@ -323,7 +326,7 @@ index 0000000..d4a8404
 +	uint8_t u_grp_id;
 +	uint8_t zone_id;
 +	uint8_t rule_id;
-+	uint8_t dummy_pad[1];
++	uint8_t tbq_level;
 +	uint16_t rule_magic;
 +	uint16_t zone_magic;
 +	uint16_t ipgrp_magic;
@@ -419,24 +422,24 @@ index 9e64d70..914c0bf 100644
  	setup_command_line(command_line);
  	setup_nr_cpu_ids();
 diff --git a/kernel/Makefile b/kernel/Makefile
-index 53abf00..60c37af 100644
+index 53abf00..72eb918 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
-@@ -9,7 +9,7 @@ obj-y     = fork.o exec_domain.o panic.o \
- 	    extable.o params.o \
- 	    kthread.o sys_ni.o nsproxy.o \
+@@ -11,6 +11,8 @@ obj-y     = fork.o exec_domain.o panic.o \
  	    notifier.o ksysfs.o cred.o reboot.o \
--	    async.o range.o smpboot.o
-+	    async.o range.o smpboot.o nos_track.o
+ 	    async.o range.o smpboot.o
  
++obj-y += nos_track.o
++
  obj-$(CONFIG_MULTIUSER) += groups.o
  
+ ifdef CONFIG_FUNCTION_TRACER
 diff --git a/kernel/nos_track.c b/kernel/nos_track.c
 new file mode 100644
-index 0000000..e6a2dca
+index 0000000..e64a1ef
 --- /dev/null
 +++ b/kernel/nos_track.c
-@@ -0,0 +1,599 @@
+@@ -0,0 +1,621 @@
 +#include <linux/nos_track.h>
 +#include <linux/nos_mempool.h>
 +#include <linux/bootmem.h>
@@ -463,7 +466,7 @@ index 0000000..e6a2dca
 +uint32_t 	nos_track_cap_size = 0;
 +uint32_t 	nos_user_info_max, nos_flow_info_max;
 +
-+void*   nos_stat_info_base;
++void*   nos_stat_info_base = NULL;
 +struct  nos_track_stats nos_track_stats;
 +
 +EXPORT_SYMBOL(nt_cap_block_sz);
@@ -494,8 +497,8 @@ index 0000000..e6a2dca
 +static atomic_t nos_user_magic = ATOMIC_INIT(0);
 +static atomic_t nos_flow_magic = ATOMIC_INIT(0);
 +
-+static struct nos_user_info *nos_user_info_base;
-+static struct nos_flow_info *nos_flow_info_base;
++static struct nos_user_info *nos_user_info_base = NULL;
++static struct nos_flow_info *nos_flow_info_base = NULL;
 +
 +static struct {
 +	struct list_head list;
@@ -512,7 +515,16 @@ index 0000000..e6a2dca
 +
 +	user_id = ut - nos_user_tracks;
 +	ui = nos_user_info_base + user_id;
-+	if (time_after(jiffies, ui->hdr.time_stamp + nos_auth_no_flow_timeout * HZ)) {
++	//Fix me:span shouldn't be greater than ULONG_MAX
++	unsigned long cur_span = 0, span = nos_auth_no_flow_timeout * HZ;
++	if (unlikely(jiffies < ui->hdr.time_stamp)) {
++		cur_span = ULONG_MAX - ui->hdr.time_stamp + jiffies;
++	}
++	else {
++		cur_span = jiffies - ui->hdr.time_stamp;
++	}
++
++	if (cur_span > span) {
 +		//timeout
 +		nos_user_track_put(ut);
 +	} else {
@@ -866,12 +878,21 @@ index 0000000..e6a2dca
 +	nos_user_info_max = nos_user_track_max;
 +	nos_flow_info_max = nos_flow_track_max;
 +
++	if (nos_track_cap_size <= 0) {
++		return -1;
++	}
++
 +	return 0;
 +}
 +
 +static int nos_mmap_init(void)
 +{
-+	void *base = phys_to_virt((phys_addr_t)nt_shm_base);
++	void *base;
++	if (nt_shm_size == 0) {
++		printk("nos no shm reserved\n");
++		return -1;
++	}
++	base = phys_to_virt((phys_addr_t)nt_shm_base);
 +	nos_track_cap_base = base;
 +	printk("nos_track_cap_base: %p, size: %x\n", nos_track_cap_base, nos_track_cap_size);
 +
@@ -911,6 +932,9 @@ index 0000000..e6a2dca
 +	/* check struct align. */
 +	BUG_ON(sizeof(user_info_t) != NOS_USER_INFO_SIZE);
 +	BUG_ON(sizeof(flow_info_t) != NOS_FLOW_INFO_SIZE);
++
++	INIT_LIST_HEAD(&nos_track_events.list);
++	spin_lock_init(&nos_track_events.lock);
 +
 +	if(!nt_shm_base) {
 +		printk("nos track reserve mem nil.\n");
@@ -957,9 +981,6 @@ index 0000000..e6a2dca
 +		INIT_HLIST_HEAD(&nos_user_track_hash[i]);
 +	}
 +
-+	INIT_LIST_HEAD(&nos_track_events.list);
-+	spin_lock_init(&nos_track_events.lock);
-+
 +	printk("nos_track_init() OK [user size: %u, flow size: %u]\n",
 +		sizeof(struct nos_user_info), sizeof(struct nos_flow_info));
 +	printk("\t[user priv size: %lu, flow priv size: %lu]\n",
@@ -983,6 +1004,10 @@ index 0000000..e6a2dca
 +{
 +	int ret;
 +
++	if (nt_shm_size == 0) {
++		nt_shm_base = 0;
++		return;
++	}
 +	nt_shm_base = alloc_bootmem_align(nt_shm_size, PAGE_SIZE);
 +	if (!nt_shm_base) {
 +		pr_warn("nos reservation failed - mem in use %lx\n", (unsigned long)nt_shm_base);
@@ -1164,7 +1189,7 @@ index 4968b5d..5cc0f9a 100644
  	CHECK_SKB_FIELD(csum);
  	CHECK_SKB_FIELD(hash);
 diff --git a/net/netfilter/nf_conntrack_core.c b/net/netfilter/nf_conntrack_core.c
-index 86a3c6f..c735ffa 100644
+index 86a3c6f..80b4c9a 100644
 --- a/net/netfilter/nf_conntrack_core.c
 +++ b/net/netfilter/nf_conntrack_core.c
 @@ -889,6 +889,9 @@ void nf_conntrack_free(struct nf_conn *ct)
@@ -1177,43 +1202,13 @@ index 86a3c6f..c735ffa 100644
  	/* A freed object has refcnt == 0, that's
  	 * the golden rule for SLAB_DESTROY_BY_RCU
  	 */
-@@ -922,6 +925,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
- 	struct nf_conn_timeout *timeout_ext;
- 	struct nf_conntrack_zone tmp;
- 	unsigned int *timeouts;
-+	struct nos_flow_tuple nos_flow_tuple;
- 
- 	if (!nf_ct_invert_tuple(&repl_tuple, tuple, l3proto, l4proto)) {
- 		pr_debug("Can't invert tuple.\n");
-@@ -948,6 +952,20 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
- 		timeouts = l4proto->get_timeouts(net);
- 	}
- 
-+	if ( !(ipv4_is_lbcast(tuple->src.u3.ip) || ipv4_is_lbcast(tuple->dst.u3.ip) ||
-+			ipv4_is_loopback(tuple->src.u3.ip) || ipv4_is_loopback(tuple->dst.u3.ip) ||
-+			ipv4_is_multicast(tuple->src.u3.ip) || ipv4_is_multicast(tuple->dst.u3.ip) ||
-+			ipv4_is_zeronet(tuple->src.u3.ip) || ipv4_is_zeronet(tuple->dst.u3.ip)) )
-+	{
-+		/* roy: nos track init nodes */
-+		nos_flow_tuple.ip_src = tuple->src.u3.ip;
-+		nos_flow_tuple.ip_dst = tuple->dst.u3.ip;
-+		nos_flow_tuple.port_src = tuple->src.u.all;
-+		nos_flow_tuple.port_dst = tuple->dst.u.all;
-+		nos_flow_tuple.proto = tuple->dst.protonum;
-+		nos_track_alloc(&ct->nos_track, &nos_flow_tuple, skb);
-+	}
-+
- 	if (!l4proto->new(ct, skb, dataoff, timeouts)) {
- 		nf_conntrack_free(ct);
- 		pr_debug("init conntrack: can't track with proto module\n");
-@@ -1635,6 +1653,12 @@ int nf_conntrack_init_start(void)
+@@ -1635,6 +1638,11 @@ int nf_conntrack_init_start(void)
  	int max_factor = 8;
  	int i, ret, cpu;
  
 +	ret = nos_track_init();
 +	if (ret < 0) {
-+		printk("%s: nos track init failed. %d\n", __FUNCTION__, ret);
-+		return ret;
++		printk("%s: nos track init failed. %d, ignore!!!\n", __FUNCTION__, ret);
 +	}
 +
  	for (i = 0; i < CONNTRACK_LOCKS; i++)
