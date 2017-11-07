@@ -1,0 +1,92 @@
+diff -uNr a/drivers/net/ethernet/mediatek/gsw_mt7621.c b/drivers/net/ethernet/mediatek/gsw_mt7621.c
+--- a/drivers/net/ethernet/mediatek/gsw_mt7621.c	2017-11-01 12:54:24.931937065 +0000
++++ b/drivers/net/ethernet/mediatek/gsw_mt7621.c	2017-11-01 12:59:14.915783599 +0000
+@@ -183,6 +183,14 @@
+ 	mt7530_mdio_w32(gsw, 0x7a74, 0x44);
+ 	mt7530_mdio_w32(gsw, 0x7a7c, 0x44);
+ 
++	/* Disable pause frame  */
++	for (i = 0; i <= 4; i++) {
++		val = _mt7620_mii_read(gsw, i, 0x04);
++		pr_info("Auto-negotiate register: %u %x\n", i, val);
++		val &= ~BIT(10);
++		_mt7620_mii_write(gsw, i, 0x04, val);
++	}
++
+ 	/* turn on all PHYs */
+ 	for (i = 0; i <= 4; i++) {
+ 		val = _mt7620_mii_read(gsw, i, 0);
+diff -uNr a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c	2017-11-01 12:55:00.475967564 +0000
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c	2017-11-01 13:00:54.359562379 +0000
+@@ -1420,6 +1420,9 @@
+ 		dev_close(dev);
+ 	}
+ 	rtnl_unlock();
++
++	if (priv->soc->reset_ports)
++		priv->soc->reset_ports(priv);
+ }
+ 
+ static const struct fe_work_t fe_work[] = {
+diff -uNr a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h	2017-11-01 12:56:00.547983816 +0000
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h	2017-11-01 13:01:52.515403533 +0000
+@@ -392,6 +392,7 @@
+ 			  u16 val);
+ 	int (*mdio_read)(struct mii_bus *bus, int phy_addr, int phy_reg);
+ 	void (*mdio_adjust_link)(struct fe_priv *priv, int port);
++	void (*reset_ports)(struct fe_priv *priv);
+ 
+ 	void *swpriv;
+ 	u32 pdma_glo_cfg;
+diff -uNr a/drivers/net/ethernet/mediatek/soc_mt7621.c b/drivers/net/ethernet/mediatek/soc_mt7621.c
+--- a/drivers/net/ethernet/mediatek/soc_mt7621.c	2017-11-01 12:56:37.255973717 +0000
++++ b/drivers/net/ethernet/mediatek/soc_mt7621.c	2017-11-01 13:04:20.594918472 +0000
+@@ -16,6 +16,7 @@
+ #include <linux/platform_device.h>
+ #include <linux/if_vlan.h>
+ #include <linux/of_net.h>
++#include <linux/delay.h>
+ 
+ #include <asm/mach-ralink/ralink_regs.h>
+ 
+@@ -157,6 +158,30 @@
+ 	spin_unlock_irqrestore(&priv->page_lock, flags);
+ }
+ 
++static void mt7621_reset_ports(struct fe_priv *priv)
++{
++	struct mt7620_gsw *gsw = priv->soc->swpriv;
++	u8 i;
++	u32 val;
++
++	/* Disable all ports */
++	for (i = 0; i <= 4; i++) {
++		val = _mt7620_mii_read(gsw, i, 0x0);
++		val |= BIT(11);
++		_mt7620_mii_write(gsw, i, 0x0, val);
++	}
++
++	/* Allow ports a (short) time to settle */
++	udelay(1000);
++
++	/* Enable ports */
++	for (i = 0; i <= 4; i++) {
++		val = _mt7620_mii_read(gsw, i, 0);
++		val &= ~BIT(11);
++		_mt7620_mii_write(gsw, i, 0, val);
++	}
++}
++
+ static struct fe_soc_data mt7621_data = {
+ 	.init_data = mt7621_init_data,
+ 	.reset_fe = mt7621_fe_reset,
+@@ -175,6 +200,7 @@
+ 	.mdio_read = mt7620_mdio_read,
+ 	.mdio_write = mt7620_mdio_write,
+ 	.mdio_adjust_link = mt7620_mdio_link_adjust,
++	.reset_ports = mt7621_reset_ports,
+ };
+ 
+ const struct of_device_id of_fe_match[] = {
