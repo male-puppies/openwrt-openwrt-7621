@@ -1,0 +1,133 @@
+PWD := $(shell pwd)
+ART_ROOT=$(PWD)
+
+DEVID = 98xx
+
+ifndef ART_HOST_CPU
+
+ifndef $(KERNELARCH)
+ifeq ($(AKRONITE),1)
+KERNELARCH=arm
+else
+KERNELARCH=mips
+endif
+endif
+TOOLARCH= $(KERNELARCH)
+ifeq ($(AKRONITE),1)
+TOOL_PREFIX=$(TOOLARCH)-openwrt-linux-uclibcgnueabi-
+else
+TOOL_PREFIX=$(TOOLARCH)-linux-uclibc-
+endif
+
+ifeq ($(AKRONITE),1)
+CFLAGS = -D__LINUX_ARM_ARCH__ -DAKRONITE_ART
+else
+CFLAGS = -D__LINUX_MIPS32_ARCH__
+endif
+
+ifeq ($(POWERPC),1)
+TOOLARCH=powerpc
+TOOL_PREFIX=$(TOOLARCH)-none-linux-gnuspe-
+PATH := $(PATH):/opt/freescale/usr/local/gcc-4.3.74-eglibc-2.8.74-dp-2/powerpc-none-linux-gnuspe/bin
+CFLAGS = -D__LINUX_POWERPC_ARCH__ -DENDIAN_SWAP
+#CFLAGS = -D__LINUX_POWERPC_ARCH__
+else
+endif
+
+ifeq ($(AKRONITE),1)
+CFLAGS += -DAH_SUPPORT_OSPREY -DAH_BYTE_ORDER=AH_LITTLE_ENDIAN -DLinux -DLINUX -DSOC_LINUX -DMDK_AP -DSOC_AP -DART_BUILD -DREMOVE_PKT_LOG -DAH_SUPPORT_WRITE_EEPROM -DATH_SUPPORT_TxBF -DATH_SUPPORT_PAPRD -DDYNAMIC_DEVICE_DLL
+else
+CFLAGS += -DAH_SUPPORT_OSPREY -DAH_BYTE_ORDER=AH_BIG_ENDIAN -DLinux -DLINUX -DSOC_LINUX -DARCH_BIG_ENDIAN -DMDK_AP -DSOC_AP -DART_BUILD -DREMOVE_PKT_LOG -DAH_SUPPORT_WRITE_EEPROM -DATH_SUPPORT_TxBF -DATH_SUPPORT_PAPRD -DDYNAMIC_DEVICE_DLL
+endif
+
+CFLAGS += $(EXTRA_CFLAGS)
+
+CFLAGS += -Os
+
+ifeq ($(GDB),1)
+    CFLAGS += -ggdb3
+endif
+
+OUTPUT_DIR=nartbuild
+
+endif
+
+CC = $(TOOL_PREFIX)gcc
+LD = $(TOOL_PREFIX)gcc
+AR = $(TOOL_PREFIX)ar
+STRIP = $(TOOL_PREFIX)strip
+
+export CC
+export LD 
+export AR
+export STRIP
+export CFLAGS
+export ART_ROOT
+
+all:
+	$(MAKE) -f makefile.nart libtlvtemplate
+	$(MAKE) -f makefile.nart libtlvutil
+	$(MAKE) -f makefile.nart anwi
+	$(MAKE) -f makefile.nart field
+	$(MAKE) -f makefile.nart shared
+	$(MAKE) -f makefile.nart linkAr9k
+	$(MAKE) -f makefile.nart LinkQc9K
+	$(MAKE) -f makefile.nart ar9287
+	$(MAKE) -f makefile.nart devlib_qc$(DEVID)
+	$(MAKE) -f makefile.nart ar9300
+	$(MAKE) -f makefile.nart cal-2p
+	$(MAKE) -f makefile.nart art
+	mkdir -p $(OUTPUT_DIR)
+	cp -fp ./anwi/Linux/libanwi.so $(OUTPUT_DIR)
+	cp -fp ./libtlv/outputTemplate/Linux/libtlvtemplate.so $(OUTPUT_DIR)
+	cp -fp ./libtlv/libtlvutil/Linux/libtlvutil.so $(OUTPUT_DIR)
+	cp -fp ./field/Linux/libfield.so $(OUTPUT_DIR)
+	cp -fp ./Link/Linux/liblinkAr9k.so $(OUTPUT_DIR)
+	cp -fp ./LinkQc9K/Linux/libLinkQc9K.so $(OUTPUT_DIR)
+	cp -fp ./devlib/Linux_ar9287/libar9287.so $(OUTPUT_DIR)
+	cp -fp ./shared/Linux/libpart.so $(OUTPUT_DIR)
+	cp -fp ./devlib/Linux_ar9300/libar9300.so $(OUTPUT_DIR)
+	cp -fp ./devlib/Linux_qc98xx/libqc98xx.so $(OUTPUT_DIR)
+	cp -fp ./calibration/cal-2p/Linux_ar9300/libcal-2p.so $(OUTPUT_DIR)
+	cp -fp ./art/obj/nart.out $(OUTPUT_DIR)
+
+libtlvtemplate:
+	$(MAKE) -C ./libtlv/outputTemplate -f makefile.ap all
+libtlvutil:
+	$(MAKE) -C ./libtlv/libtlvutil -f makefile.ap all
+anwi:
+	$(MAKE) -C ./anwi/ -f makefile.nart
+field:
+	$(MAKE) -C ./field/ -f makefile.nart
+shared:
+	$(MAKE) -C ./shared/ -f makefile.nart
+linkAr9k:
+	$(MAKE) -C ./Link/ -f makefile.ar9k
+LinkQc9K:
+	$(MAKE) -C ./LinkQc9K/ -f makefile.ap
+ar9287:
+	$(MAKE) -C ./devlib/ -f makefile.ar9287
+ar9300:
+	$(MAKE) -C ./devlib/ -f makefile.ar9k
+devlib_qc$(DEVID):
+	$(MAKE) -C ./devlib/ -f makefile_qc$(DEVID).ap
+cal-2p:
+	$(MAKE) -C ./calibration/cal-2p/ -f makefile.ap
+art:
+	$(MAKE) -C ./art/ -f makefile.dart
+
+clean:
+	$(MAKE) -C ./libtlv/outputTemplate -f makefile.ap clean
+	$(MAKE) -C ./libtlv/libtlvutil -f makefile.ap clean
+	$(MAKE) -C ./anwi/ -f makefile.nart clean
+	$(MAKE) -C ./field/ -f makefile.nart clean
+	$(MAKE) -C ./shared/ -f makefile.nart clean
+	$(MAKE) -C ./Link/ -f makefile.ar9k clean
+	$(MAKE) -C ./LinkQc9K/ -f makefile.ap clean
+	$(MAKE) -C ./devlib/ -f makefile.ar9287 clean
+	$(MAKE) -C ./devlib/ -f makefile.ar9k clean
+	$(MAKE) -C ./devlib/ -f makefile_qc$(DEVID).ap clean
+	$(MAKE) -C ./calibration/cal-2p/ -f makefile.ap clean
+	$(MAKE) -C ./art/ -f makefile.dart clean
+
+.PHONY: all anwi field shared devlib LinkQc9K linkAr9k devlib_qc$(DEVID) cal-2p art libtlvutil libtlvtemplate clean

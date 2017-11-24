@@ -1,0 +1,70 @@
+ifndef ART_HOST_CPU
+$(error "You have to define ART_HOST_CPU to use this Makefile")
+endif
+
+ifndef ART_MODULE_TYPE
+ART_MODULE_TYPE=dual_pcie
+endif
+
+#
+# Include the specific configuration files from the config.boardtype file
+# here.  This removes the need to set environmental variables through a
+# script before building
+#
+
+export TOPDIR=$(PWD)
+
+include $(ART_HOST_CPU)/config.$(ART_HOST_CPU).art
+
+#
+# Put in safety checks here to ensure all required variables are defined in
+# the configuration file
+#
+
+#ifndef TOOLPREFIX
+#$(error "Must specify TOOLPREFIX value")
+#endif
+
+ifndef TOOLCHAIN
+$(error "Must specify TOOLCHAIN value")
+endif
+
+ifndef TOOLARCH
+$(error "Must specify TOOLARCH value")
+endif
+
+ifndef KERNEL
+$(error "Must specify KERNEL value")
+endif
+
+ifndef KERNELVER
+$(error "Must specify KERNELVER value")
+endif
+
+ifndef KERNELTARGET
+$(error "Must specify KERNELTARGET value")
+endif
+
+ifndef KERNELARCH
+$(error "Must specify KERNELARCH value")
+endif
+
+ifndef  BUILD_OPTIMIZED
+export STRIP=$(TOOLPREFIX)strip
+else
+ifeq ($(BUILD_OPTIMIZED), y)
+export OLDSTRIP=$(TOOLPREFIX)strip
+export STRIP=$(TOOLPREFIX)sstrip
+endif
+endif
+
+
+#
+# Include the board specific make file
+#
+
+include $(ART_HOST_CPU)/Makefile.$(ART_HOST_CPU).art
+
+#
+# Common targts
+#

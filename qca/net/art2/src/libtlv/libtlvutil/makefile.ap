@@ -1,0 +1,43 @@
+OUTPUT_DIR=Linux
+MDK_ROOT = $(WORKAREA)/host/tools/systemtools
+
+CFLAGS += -DDEBUG -DTEST_STANDALONE -D_HOST_SIM_TESTING -D_FOR_HOST_TESTING
+
+CFLAGS += -I$(ART_ROOT)/libtlv/include \
+        -I$(ART_ROOT)/libtlv/outputTemplate \
+		-I$(ART_ROOT)/common \
+		-I$(ART_ROOT)/wlan/nartlinux \
+        -I$(WORKAREA)/include/systemtools/common \
+
+CFLAGS += -fPIC
+
+SRCS = genTxBinCmdTlv.c cmdParmsTemplate.c parseRxBinCmdTlv.c testUtil.c
+
+OBJS    :=  $(patsubst %.c,$(OUTPUT_DIR)/%.o,$(SRCS))
+
+LIB 	:= $(OUTPUT_DIR)/libtlvutil.so
+LDFLAGS := -shared
+
+all: $(LIB)
+
+$(LIB): $(OUTPUT_DIR) $(OBJS) 
+ifndef LD_FLAGS
+	$(LD) $(LDFLAGS) -o $@ $(OBJS)
+else
+	$(CC) $(LD_FLAGS) $(LDFLAGS) -o $@ $(OBJS)
+endif
+
+$(OUTPUT_DIR): 
+	echo $(OUTPUT_DIR)
+	mkdir -p ./$(OUTPUT_DIR)
+	
+$(OUTPUT_DIR)/%.o : %.c
+ifndef C_FLAGS
+	$(CC) -c $(CFLAGS) $< -o $@
+else
+	$(CC) -c $(C_FLAGS) $(CFLAGS) $< -o $@
+endif
+
+clean:
+	rm -fr $(OUTPUT_DIR)
+
