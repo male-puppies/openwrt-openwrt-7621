@@ -10,7 +10,7 @@
 # default to be a working user configuration.
 # At the end of the boot process, the user can start art using:
 # /etc/init.d/art start
-START=79
+START=99
 SERVICE_DAEMONIZE=1
 SERVICE_WRITE_PID=1
 wifi_dir=/sys/class/net/wifi
@@ -120,6 +120,9 @@ art_qca_wifi_detect() {
 
 ugw_add()
 {	
+	proc="apmgr proxybase performer ntrackd cfgmgr backend authd appcheck acmgr sands database nproto logserver nginx"
+	for p in $proc;do eval /etc/init.d/$p stop 2>/dev/null;done
+	killall wait_for_db_ready
 	wifi down
 	sleep 1;
 	rmmod ath_pktlog
@@ -136,7 +139,23 @@ ugw_add()
 
 start() {
 	set_factory_test_flag_by_mac
-	[ -f "$factory_test_flag" ] || return
+	[ -f "$factory_test_flag" ] || {
+		[ `uci get network.lan1.proto` == "static" ] || {
+			uci set network.lan1.proto='static'
+			uci commit network
+			/etc/init.d/network reload
+			/etc/init.d/dnsmasq reload
+		}
+		return
+	}
+
+	uci set network.lan1.proto='dhcp'
+	uci commit network
+	/etc/init.d/network reload
+
+	ifconfig br-lan1:3 169.254.254.254 up
+	killall -9 telnetd
+	telnetd -l /bin/ash &
 
 	ugw_add
 
@@ -173,8 +192,8 @@ start() {
 	fi
 	
 	start_nart_out "1"
-	ifconfig br-lan:4 192.168.1.16
-	ifconfig br-lan:5 169.254.254.254
+	ifconfig br-lan1:4 192.168.1.16
+	ifconfig br-lan1:5 169.254.254.254
 }
 
 stop() {
