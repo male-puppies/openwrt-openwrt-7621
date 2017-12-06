@@ -140,7 +140,7 @@ ugw_add()
 start() {
 	set_factory_test_flag_by_mac
 	[ -f "$factory_test_flag" ] || {
-		[ `uci get network.lan1.proto` == "static" ] || {
+		[ "z`uci get network.lan1.proto 2>/dev/null`" == "zstatic" ] || {
 			uci set network.lan1.proto='static'
 			uci commit network
 			/etc/init.d/network reload
@@ -149,11 +149,15 @@ start() {
 		return
 	}
 
-	uci set network.lan1.proto='dhcp'
+	interface=lan1
+	[ "z`uci get network.$interface 2>/dev/null`" == "zinterface" ] || interface=lan
+
+	uci set network.$interface.proto='dhcp'
 	uci commit network
 	/etc/init.d/network reload
+	/etc/init.d/dnsmasq reload
 
-	ifconfig br-lan1:3 169.254.254.254 up
+	ifconfig br-$interface:3 169.254.254.254 up
 	killall -9 telnetd
 	telnetd -l /bin/ash &
 
@@ -192,8 +196,8 @@ start() {
 	fi
 	
 	start_nart_out "1"
-	ifconfig br-lan1:4 192.168.1.16
-	ifconfig br-lan1:5 169.254.254.254
+	ifconfig br-$interface:4 192.168.1.16
+	ifconfig br-$interface:5 169.254.254.254
 }
 
 stop() {
