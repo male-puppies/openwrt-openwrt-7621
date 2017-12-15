@@ -26,6 +26,7 @@
 #include <linux/ethtool.h>
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
+#include <linux/if_link.h>
 #include <linux/phy.h>
 #include <linux/skbuff.h>
 #include <linux/dma-mapping.h>
@@ -177,6 +178,8 @@ struct ag71xx {
 	struct work_struct	restart_work;
 	struct delayed_work	link_work;
 	struct timer_list	oom_timer;
+
+	struct rtnl_link_stats64 ag71xx_net_stat;
 
 #ifdef CONFIG_AG71XX_DEBUG_FS
 	struct ag71xx_debug	debug;

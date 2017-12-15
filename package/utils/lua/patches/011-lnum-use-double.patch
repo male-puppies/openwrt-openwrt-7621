@@ -1,6 +1,8 @@
+diff --git a/src/lnum_config.h b/src/lnum_config.h
+index c8b424d..ce2544a 100644
 --- a/src/lnum_config.h
 +++ b/src/lnum_config.h
-@@ -11,7 +11,7 @@
+@@ -11,10 +11,10 @@
  ** Default number modes
  */
  #if (!defined LNUM_DOUBLE) && (!defined LNUM_FLOAT) && (!defined LNUM_LDOUBLE)
@@ -8,4 +10,8 @@
 +# define LNUM_DOUBLE
  #endif
  #if (!defined LNUM_INT16) && (!defined LNUM_INT32) && (!defined LNUM_INT64)
- # define LNUM_INT32
+-# define LNUM_INT32
++# define LNUM_INT64
+ #endif
+
+ /*

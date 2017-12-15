@@ -146,7 +146,8 @@ static void ag71xx_ring_tx_clean(struct ag71xx *ag)
 		desc = ag71xx_ring_desc(ring, i);
 		if (!ag71xx_desc_empty(desc)) {
 			desc->ctrl = 0;
-			dev->stats.tx_errors++;
+			//dev->stats.tx_errors++;
+			ag->ag71xx_net_stat.tx_errors++;
 		}
 
 		if (ring->buf[i].skb) {
@@ -845,7 +846,8 @@ err_drop_unmap:
 	dma_unmap_single(&dev->dev, dma_addr, skb->len, DMA_TO_DEVICE);
 
 err_drop:
-	dev->stats.tx_dropped++;
+	//dev->stats.tx_dropped++;
+	ag->ag71xx_net_stat.tx_dropped++;
 
 	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
@@ -993,8 +995,11 @@ static int ag71xx_tx_packets(struct ag71xx *ag, bool flush)
 
 	DBG("%s: %d packets sent out\n", ag->dev->name, sent);
 
-	ag->dev->stats.tx_bytes += bytes_compl;
-	ag->dev->stats.tx_packets += sent;
+	ag->ag71xx_net_stat.tx_bytes += bytes_compl;
+	ag->ag71xx_net_stat.tx_packets += sent;
+	
+	//ag->dev->stats.tx_bytes += bytes_compl;
+	//ag->dev->stats.tx_packets += sent;
 
 	if (!sent)
 		return 0;
@@ -1045,8 +1050,11 @@ static int ag71xx_rx_packets(struct ag71xx *ag, int limit)
 		dma_unmap_single(&dev->dev, ring->buf[i].dma_addr,
 				 ag->rx_buf_size, DMA_FROM_DEVICE);
 
-		dev->stats.rx_packets++;
-		dev->stats.rx_bytes += pktlen;
+		ag->ag71xx_net_stat.rx_packets++;
+		ag->ag71xx_net_stat.rx_bytes += pktlen;
+				 
+		//dev->stats.rx_packets++;
+		//dev->stats.rx_bytes += pktlen;
 
 		skb = build_skb(ring->buf[i].rx_buf, ag71xx_buffer_size(ag));
 		if (!skb) {
@@ -1061,7 +1069,8 @@ static int ag71xx_rx_packets(struct ag71xx *ag, int limit)
 			err = ag71xx_remove_ar8216_header(ag, skb, pktlen);
 
 		if (err) {
-			dev->stats.rx_dropped++;
+			//dev->stats.rx_dropped++;
+			ag->ag71xx_net_stat.rx_dropped++;
 			kfree_skb(skb);
 		} else {
 			skb->dev = dev;
@@ -1115,7 +1124,8 @@ static int ag71xx_poll(struct napi_struct *napi, int limit)
 	status = ag71xx_rr(ag, AG71XX_REG_RX_STATUS);
 	if (unlikely(status & RX_STATUS_OF)) {
 		ag71xx_wr(ag, AG71XX_REG_RX_STATUS, RX_STATUS_OF);
-		dev->stats.rx_fifo_errors++;
+		//dev->stats.rx_fifo_errors++;
+		ag->ag71xx_net_stat.rx_fifo_errors++;
 
 		/* restart RX */
 		ag71xx_wr(ag, AG71XX_REG_RX_CTRL, RX_CTRL_RXE);
@@ -1219,6 +1229,24 @@ static int ag71xx_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+struct rtnl_link_stats64 *ag71xx_get_stat64(struct net_device *dev,
+					struct rtnl_link_stats64 *stats)
+{
+	struct ag71xx *ag = netdev_priv(dev);
+	struct rtnl_link_stats64 *estats = &ag->ag71xx_net_stat;
+
+	stats->rx_packets      = estats->rx_packets;
+	stats->tx_packets      = estats->tx_packets;
+	stats->rx_bytes        = estats->rx_bytes;
+	stats->tx_bytes        = estats->tx_bytes;
+	stats->rx_fifo_errors  = estats->rx_errors;
+	stats->tx_errors       = estats->tx_errors;
+	stats->rx_dropped      = estats->rx_dropped;
+	stats->tx_dropped      = estats->tx_dropped;
+	return stats;
+}
+
+
 static const struct net_device_ops ag71xx_netdev_ops = {
 	.ndo_open		= ag71xx_open,
 	.ndo_stop		= ag71xx_stop,
@@ -1226,6 +1254,7 @@ static const struct net_device_ops ag71xx_netdev_ops = {
 	.ndo_do_ioctl		= ag71xx_do_ioctl,
 	.ndo_tx_timeout		= ag71xx_tx_timeout,
 	.ndo_change_mtu		= ag71xx_change_mtu,
+	.ndo_get_stats64	= ag71xx_get_stat64,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1292,6 +1321,8 @@ static int ag71xx_probe(struct platform_device *pdev)
 	ag->dev = dev;
 	ag->msg_enable = netif_msg_init(ag71xx_msg_level,
 					AG71XX_DEFAULT_MSG_ENABLE);
+
+	memset(&ag->ag71xx_net_stat, 0, sizeof(struct rtnl_link_stats64));
 	spin_lock_init(&ag->lock);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mac_base");

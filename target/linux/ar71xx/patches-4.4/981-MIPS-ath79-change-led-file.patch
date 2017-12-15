@@ -1,0 +1,12 @@
+diff -uNr a/arch/mips/ath79/mach-ap143.c b/arch/mips/ath79/mach-ap143.c
+--- a/arch/mips/ath79/mach-ap143.c	2017-03-23 04:00:54.078202912 +0000
++++ b/arch/mips/ath79/mach-ap143.c	2017-03-23 04:01:43.639193901 +0000
+@@ -61,7 +61,7 @@
+ 		.active_low	= 1,
+ 	},
+ 	{
+-		.name		= "ap143:green:wlan",
++		.name		= "wlan_2g",
+ 		.gpio		= AP143_GPIO_LED_WLAN,
+ 		.active_low	= 1,
+ 	}

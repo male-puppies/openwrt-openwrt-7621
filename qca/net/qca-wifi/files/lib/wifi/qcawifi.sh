@@ -74,8 +74,7 @@ scan_qcawifi() {
 		local vifname
 		[ $ifidx -gt 0 ] && vifname="ath${radioidx}$ifidx" || vifname="ath${radioidx}"
 
-		config_get ifname "$vif" ifname
-		config_set "$vif" ifname "${ifname:-$vifname}"
+		config_set "$vif" ifname $vifname
 
 		config_get mode "$vif" mode
 		case "$mode" in
