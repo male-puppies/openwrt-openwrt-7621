@@ -5,6 +5,6 @@ src-git telephony https://github.com/male-puppies/openwrt-telephony-puppies.git;
 src-git management https://github.com/male-puppies/openwrt-management-packages-puppies.git;v3.3-fap
 src-git targets https://github.com/male-puppies/openwrt-targets-puppies.git;v3.3-fap
 src-git oldpackages https://github.com/male-puppies/openwrt-oldpackages-puppies.git;v3.3-fap
-src-git puppies https://gitlab.com/male-puppies/openwrt-ac-puppies.git;v3.3-fap
+src-git puppies https://gitlab.com/QilunWireless/fatap/fix/openwrt-ac-puppies;v3.3-fap
 #src-link custom /usr/src/openwrt/custom-feed
 src-link qca ../qca
